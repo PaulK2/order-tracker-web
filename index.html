@@ -113,6 +113,16 @@
   function fillCategorySelects(){
     const names = OT.categoryNames();
 
+  function escapeHtml(s){
+  return String(s || "")
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+}
+
+
     // Add form category
     categorySel.innerHTML = "";
     names.forEach(n=>{
@@ -198,6 +208,13 @@
               <div>
                 <div class="title">${o.name}</div>
                 <div class="meta">${orderHeader(o)}</div>
+                ${o.notes && o.notes.length ? `
+                  <div class="muted small" style="margin-top:6px">
+                    <b>Last note:</b>
+                    ${escapeHtml(o.notes[o.notes.length - 1].text).slice(0, 180)}
+                  </div>
+                ` : ""}
+
               </div>
               <div class="row end">
                 <button class="ghost" data-copy="310">Copy 310x</button>
