@@ -43,23 +43,17 @@
     </div>
 
     
-<div class="grid two">
-  <section class="card">
-    <div class="card-h">
-      <h1 class="h2">Open Orders</h1>
-      <p class="muted">Add, filter, and work through checklists.</p>
-    </div>
-    <div class="card-b stack">
-      <div class="row">
-        <input id="name" placeholder="Name" style="min-width:220px" />
-        <input id="v310" placeholder="310x" style="width:140px" />
-        <input id="v42" placeholder="42x" style="width:140px" />
-        <select id="category" style="min-width:170px"></select>
-        <button class="primary" id="addBtn">Add Order</button>
-      </div>
 
+<section class="card">
+  <div class="card-h">
+    <h1 class="h2">Open Orders</h1>
+    <p class="muted">Search & filter at the top. Click an order to work through its checklist.</p>
+  </div>
+
+  <div class="card-b stack">
+    <div class="row between">
       <div class="row">
-        <input id="search" placeholder="Search (name / 310 / 42 / 23)" style="min-width:260px" />
+        <input id="search" placeholder="Search (name / 310 / 42 / 23)" style="min-width:320px" />
         <select id="sort" style="min-width:160px">
           <option>Created</option>
           <option>Name A→Z</option>
@@ -68,23 +62,27 @@
           <option>42x</option>
           <option>23x</option>
         </select>
-        <select id="catFilter" style="min-width:180px"></select>
+        <select id="catFilter" style="min-width:200px"></select>
       </div>
-
-      <div id="orders" class="stack"></div>
+      <button class="primary" id="toggleAdd">+ Add order</button>
     </div>
-  </section>
 
-  <aside class="card">
-    <div class="card-h"><h2 class="h2">Quick tips</h2></div>
-    <div class="card-b stack">
-      <div class="muted">• Copy values with one click</div>
-      <div class="muted">• Check items to track progress</div>
-      <div class="muted">• Attach links instead of local file paths</div>
-      <div class="muted small">Keyboard: <span class="kbd">Ctrl</span>+<span class="kbd">F</span> to search the page.</div>
+    <div id="addPanel" class="card" style="display:none">
+      <div class="card-b">
+        <div class="row">
+          <input id="name" placeholder="Name" style="min-width:240px" />
+          <input id="v310" placeholder="310x" style="width:160px" />
+          <input id="v42" placeholder="42x" style="width:160px" />
+          <select id="category" style="min-width:190px"></select>
+          <button class="good" id="addBtn">Add</button>
+        </div>
+      </div>
     </div>
-  </aside>
-</div>
+
+    <div id="orders" class="stack"></div>
+  </div>
+</section>
+
 
   </main>
 
@@ -94,6 +92,8 @@
     
 (function(){
   const $ = OT.byId;
+
+  // Ensure collections exist (for older imports)
   OT.State.data.open ||= [];
   OT.State.data.finished ||= [];
   OT.State.data.links ||= [];
@@ -107,21 +107,30 @@
   const searchInp = $("search");
   const ordersRoot = $("orders");
 
+  const addPanel = $("addPanel");
+  const toggleAdd = $("toggleAdd");
+
   function fillCategorySelects(){
     const names = OT.categoryNames();
+
+    // Add form category
     categorySel.innerHTML = "";
     names.forEach(n=>{
       const opt=document.createElement("option"); opt.value=n; opt.textContent=n;
       categorySel.appendChild(opt);
     });
+
+    // Filter dropdown (keep current selection if possible)
+    const current = catFilter.value || "All categories";
     catFilter.innerHTML = "";
-    const all = document.createElement("option"); all.value="All categories"; all.textContent="All categories";
+    const all = document.createElement("option");
+    all.value="All categories"; all.textContent="All categories";
     catFilter.appendChild(all);
     names.forEach(n=>{
       const opt=document.createElement("option"); opt.value=n; opt.textContent=n;
       catFilter.appendChild(opt);
     });
-    if(!catFilter.value) catFilter.value = "All categories";
+    catFilter.value = (Array.from(catFilter.options).some(o=>o.value===current)) ? current : "All categories";
   }
 
   function filteredOrders(){
@@ -160,15 +169,16 @@
 
   function render(){
     fillCategorySelects();
-    OT.updateTopbar?.();
+
     OT.State.data.open.forEach(o=>{
+      // ensure minimal fields (safe if imported)
+      o.notes ||= [];
+      o.files ||= [];
+      o.val23 ||= "";
       if(!o.tasks || !o.tasks.length){
         const cat = OT.categoryByName(o.category||"Default");
         o.tasks = (cat.tasks||OT.DEFAULT_TASKS).map(t=>({name:t, done:false}));
       }
-      o.notes ||= [];
-      o.files ||= [];
-      o.val23 ||= "";
     });
 
     OT.clear(ordersRoot);
@@ -226,11 +236,9 @@
         </div>
       `);
 
-      // copy buttons
       card.querySelector('[data-copy="310"]').onclick = ()=> OT.copyToClipboard(o.val310);
       card.querySelector('[data-copy="42"]').onclick = ()=> OT.copyToClipboard(o.val42);
 
-      // 23x toggle
       const inp23 = card.querySelector("[data-23]");
       const btn23 = card.querySelector("[data-23save]");
       btn23.onclick = ()=>{
@@ -246,7 +254,6 @@
         }
       };
 
-      // category select per order (replaces checklist template, like Python app)
       const sel = card.querySelector("[data-cat]");
       sel.innerHTML = "";
       OT.categoryNames().forEach(n=>{
@@ -263,7 +270,6 @@
         OT.toast("Category updated", "ok");
       };
 
-      // Finish / remove
       card.querySelector("[data-finish]").onclick = ()=>{
         OT.State.data.open = OT.State.data.open.filter(x=>x!==o);
         OT.State.data.finished.push(o);
@@ -281,7 +287,7 @@
         OT.toast("Order removed", "ok");
       };
 
-      // attachments (links)
+      // attachments
       const filesRoot = card.querySelector("[data-files]");
       const renderFiles = ()=>{
         OT.clear(filesRoot);
@@ -319,7 +325,6 @@
         OT.toast("Link added", "ok");
       };
 
-      // checklist
       const checksRoot = card.querySelector("[data-checks]");
       const countEl = card.querySelector("[data-count]");
 
@@ -372,6 +377,12 @@
     OT.toast("Order added", "ok");
   };
 
+  toggleAdd.onclick = ()=>{
+    const show = addPanel.style.display === "none";
+    addPanel.style.display = show ? "block" : "none";
+    toggleAdd.textContent = show ? "Hide add form" : "+ Add order";
+  };
+
   ["input","change"].forEach(evt=>{
     searchInp.addEventListener(evt, render);
     sortSel.addEventListener(evt, render);
@@ -382,6 +393,6 @@
   render();
 })();
 
-  </script>
+    </script>
 </body>
 </html>

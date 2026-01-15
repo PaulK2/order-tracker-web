@@ -43,9 +43,9 @@
         <div class="card-h"><h2 class="h2">Import / Export</h2><p class="muted">Use this to move data between machines.</p></div>
         <div class="card-b stack">
           <div>
-            <div class="muted small">Import JSON file for the selected user</div>
+            <div class="muted small">Import JSON (one combined file, or select BOTH orders.json + settings.json)</div>
             <div class="row">
-              <input type="file" id="importFile" accept="application/json" />
+              <input type="file" id="importFile" accept="application/json" multiple />
               <button class="primary" id="importBtn">Import</button>
             </div>
           </div>
@@ -155,15 +155,48 @@
     OT.byId("importBtn").onclick = async ()=>{
       const u = sel.value;
       if(!u) return OT.toast("Select a user first", "bad");
-      const f = OT.byId("importFile").files?.[0];
-      if(!f) return OT.toast("Choose a JSON file", "bad");
-      const text = await f.text();
+      const files = Array.from(OT.byId("importFile").files || []);
+      if(!files.length) return OT.toast("Choose JSON file(s)", "bad");
+
+      let orders = null;
+      let settings = null;
+      let combined = {};
+
+      for(const f of files){
+        const text = await f.text();
+        let obj;
+        try{ obj = JSON.parse(text); }catch(e){ return OT.toast(`Invalid JSON: ${f.name}`, "bad"); }
+
+        const looksLikeOrders = obj && (Array.isArray(obj.open) || Array.isArray(obj.finished) || Array.isArray(obj.links) || Array.isArray(obj.kb_texts) || Array.isArray(obj.kb_chart) || Array.isArray(obj.kb_tabs));
+        const looksLikeSettings = obj && (Array.isArray(obj.categories) || typeof obj.theme === "string" || Array.isArray(obj.default_tasks));
+
+        if(looksLikeOrders && !orders) orders = obj;
+        else if(looksLikeSettings && !settings) settings = obj;
+        else {
+          // If it's already combined, just treat it as combined
+          combined = obj;
+        }
+      }
+
+      // If user selected two separate files (orders + settings), merge them.
+      if(orders || settings){
+        combined = {
+          ...(orders || {}),
+          ...(settings || {}),
+          // Prefer links & KB from orders.json if present
+          links: (orders && Array.isArray(orders.links)) ? orders.links : (settings && settings.links) || [],
+          kb_texts: (orders && Array.isArray(orders.kb_texts)) ? orders.kb_texts : (settings && settings.kb_texts) || [],
+          kb_chart: (orders && Array.isArray(orders.kb_chart)) ? orders.kb_chart : (settings && settings.kb_chart) || [],
+          kb_tabs: (orders && Array.isArray(orders.kb_tabs)) ? orders.kb_tabs : (settings && settings.kb_tabs) || [],
+        };
+      }
+
       try{
-        const obj = JSON.parse(text);
-        localStorage.setItem(`ot:${u}`, JSON.stringify(obj));
+        const normalized = OT.normalizeData(combined);
+        localStorage.setItem(`ot:${u}`, JSON.stringify(normalized));
         OT.toast("Imported", "ok");
       }catch(e){
-        OT.toast("Invalid JSON", "bad");
+        OT.toast("Import failed", "bad");
       }
     };
 
