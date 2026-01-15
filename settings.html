@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Settings • Order Tracker</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="notice" class="notice"></div>
+
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <div>A1 Order Tracker</div>
+        <div class="badge">Web MVP</div>
+      </div>
+
+      
+    <nav class="nav">
+      <a href="index.html">Open Orders</a>
+      <a href="finished.html">Finished</a>
+      <a href="notes.html">Notes</a>
+      <a href="links.html">Links</a>
+      <a href="kb.html">Knowledge Base</a>
+      <a href="settings.html">Settings</a>
+      <a href="info.html">Info</a>
+    </nav>
+    
+
+      <div class="userbox">
+        <div class="pill"><span class="muted">User:</span> <b data-user>—</b></div>
+        <div class="pill" data-open>Open: 0</div>
+        <div class="pill" data-finished>Finished: 0</div>
+        <button class="ghost" data-switch-user title="Switch user">Switch</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <div id="previewBanner" class="banner">
+      <b>Preview mode</b> – saving is disabled. Go to <span class="kbd">Settings</span> to restore your data.
+    </div>
+
+    
+<section class="card">
+  <div class="card-h">
+    <h1 class="h2">Settings</h1>
+    <p class="muted">Theme, categories & data sharing (preview).</p>
+  </div>
+  <div class="card-b stack">
+
+    <div class="row between">
+      <div>
+        <b>Theme</b>
+        <div class="muted small">Applies instantly</div>
+      </div>
+      <div class="row end">
+        <button id="dark">Dark</button>
+        <button id="light">Light</button>
+      </div>
+    </div>
+
+    <div class="sep"></div>
+
+    <div class="row between">
+      <div>
+        <b>Order categories</b>
+        <div class="muted small">Each category defines a checklist template (like your Python app).</div>
+      </div>
+      <button class="primary" id="addCat">Add category</button>
+    </div>
+
+    <div id="cats" class="stack"></div>
+
+    <div class="sep"></div>
+
+    <div class="row between">
+      <div>
+        <b>Data key</b>
+        <div class="muted small">Share your data as a compact key (base64 JSON). Load it in preview mode.</div>
+      </div>
+    </div>
+
+    <div class="row">
+      <button class="primary" id="showKey">Show my key</button>
+      <button class="ghost" id="loadKey">Load key (preview)</button>
+      <button class="ghost" id="restore" title="Back to my data">Back to my data</button>
+    </div>
+
+    <textarea id="keyBox" placeholder="Key will appear here (or paste a key here to load preview)"></textarea>
+
+  </div>
+</section>
+
+  </main>
+
+  <script src="app.js"></script>
+  <script>
+    OT.initCommon();
+    
+(function(){
+  const $ = OT.byId;
+  const catsRoot = $("cats");
+  const keyBox = $("keyBox");
+
+  function renderCats(){
+    OT.clear(catsRoot);
+    OT.State.data.categories ||= [{name:"Default", color:"#3b82f6", tasks:[...OT.DEFAULT_TASKS]}];
+
+    OT.State.data.categories.forEach((c, idx)=>{
+      const tasks = (c.tasks||[]).join("\n");
+      const row = OT.el(`
+        <div class="card">
+          <div class="card-b stack">
+            <div class="row between">
+              <div class="row">
+                <div class="pill" style="border-color:${c.color||"#3b82f6"}">${c.name||"Category"}</div>
+                <div class="muted small">${(c.tasks||[]).length} tasks</div>
+              </div>
+              <div class="row end">
+                <button class="ghost" data-edit>Edit</button>
+                <button class="ghost" data-tasks>Edit checklist</button>
+                <button class="bad" data-rm>Remove</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `);
+
+      row.querySelector("[data-edit]").onclick = ()=>{
+        const name = prompt("Category name:", c.name||"");
+        if(name===null) return;
+        const color = prompt("Color (hex):", c.color||"#3b82f6");
+        if(color===null) return;
+        c.name = name.trim()||c.name||"Category";
+        c.color = color.trim()||"#3b82f6";
+        OT.saveUser();
+        renderCats();
+        OT.toast("Updated", "ok");
+      };
+
+      row.querySelector("[data-tasks]").onclick = ()=>{
+        const raw = prompt("Tasks (one per line):", (c.tasks||[]).join("\n"));
+        if(raw===null) return;
+        c.tasks = raw.split("\n").map(x=>x.trim()).filter(Boolean);
+        OT.saveUser();
+        renderCats();
+        OT.toast("Checklist saved", "ok");
+      };
+
+      row.querySelector("[data-rm]").onclick = ()=>{
+        if(OT.State.data.categories.length<=1) return OT.toast("Need at least one category", "bad");
+        if(!confirm(`Remove category '${c.name}'?`)) return;
+        OT.State.data.categories.splice(idx,1);
+        OT.saveUser();
+        renderCats();
+        OT.toast("Removed", "ok");
+      };
+
+      catsRoot.appendChild(row);
+    });
+  }
+
+  $("addCat").onclick = ()=>{
+    const name = prompt("Category name:");
+    if(name===null) return;
+    const color = prompt("Color (hex):", "#3b82f6");
+    if(color===null) return;
+    OT.State.data.categories.push({
+      name: name.trim()||"New Category",
+      color: color.trim()||"#3b82f6",
+      tasks: [...OT.DEFAULT_TASKS]
+    });
+    OT.saveUser();
+    renderCats();
+    OT.toast("Category added", "ok");
+  };
+
+  $("dark").onclick = ()=>{ OT.State.data.theme="dark"; OT.applyTheme("dark"); OT.saveUser(); OT.toast("Dark theme", "ok"); };
+  $("light").onclick = ()=>{ OT.State.data.theme="light"; OT.applyTheme("light"); OT.saveUser(); OT.toast("Light theme", "ok"); };
+
+  $("showKey").onclick = ()=>{
+    // include categories + theme in the key, matching the Python sharing concept
+    const payload = {
+      open: OT.State.data.open || [],
+      finished: OT.State.data.finished || [],
+      links: OT.State.data.links || [],
+      kb_texts: OT.State.data.kb_texts || [],
+      kb_tabs: OT.State.data.kb_tabs || [],
+      categories: OT.State.data.categories || [],
+      theme: OT.State.data.theme || "dark",
+    };
+    keyBox.value = OT.encodeKey(payload);
+    OT.toast("Key generated", "ok");
+  };
+
+  $("loadKey").onclick = ()=>{
+    const k = (keyBox.value||"").trim();
+    if(!k) return OT.toast("Paste a key first", "bad");
+    OT.loadFromKeyPreview(k);
+    OT.toast("Preview loaded", "ok");
+  };
+
+  $("restore").onclick = ()=>{
+    OT.restoreFromPreview();
+    location.reload();
+  };
+
+  renderCats();
+})();
+
+  </script>
+</body>
+</html>

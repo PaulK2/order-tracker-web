@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Users • Order Tracker</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="notice" class="notice"></div>
+
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <div>A1 Order Tracker</div>
+        <div class="badge">Users</div>
+      </div>
+      <div class="userbox">
+        <button class="ghost" id="goApp">Go to app</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="grid two">
+      <section class="card">
+        <div class="card-h"><h1 class="h2">Select a user</h1><p class="muted">Each user is stored in your browser (localStorage).</p></div>
+        <div class="card-b">
+          <div class="row">
+            <select id="userSelect" style="min-width:260px"></select>
+            <button class="primary" id="loadUser">Load</button>
+            <button class="bad" id="deleteUser">Delete</button>
+          </div>
+          <div class="sep"></div>
+          <div class="row">
+            <input id="newUser" placeholder="New username (e.g., pavel)" style="min-width:260px" />
+            <button class="primary" id="createUser">Create</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-h"><h2 class="h2">Import / Export</h2><p class="muted">Use this to move data between machines.</p></div>
+        <div class="card-b stack">
+          <div>
+            <div class="muted small">Import JSON file for the selected user</div>
+            <div class="row">
+              <input type="file" id="importFile" accept="application/json" />
+              <button class="primary" id="importBtn">Import</button>
+            </div>
+          </div>
+
+          <div class="sep"></div>
+
+          <div>
+            <div class="muted small">Export selected user to JSON</div>
+            <div class="row">
+              <button class="primary" id="exportBtn">Export JSON</button>
+            </div>
+          </div>
+
+          <div class="sep"></div>
+
+          <div class="muted small">
+            Tip: If you already have <b>orders.json</b> / <b>settings.json</b> from the Python app, you can combine them into
+            one JSON file shaped like: <span class="kbd">{ open:[], finished:[], links:[], kb_texts:[], kb_tabs:[], categories:[], theme:"dark" }</span>.
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script src="app.js"></script>
+  <script>
+    // Users page doesn't call OT.initCommon() because it redirects when no user.
+    const sel = OT.byId("userSelect");
+    const input = OT.byId("newUser");
+
+    function refresh(){
+      const users = localStorage.getItem("ot:users");
+      let list = [];
+      try{ list = users ? JSON.parse(users) : []; }catch{ list=[]; }
+
+      sel.innerHTML = "";
+      list.forEach(u=>{
+        const opt = document.createElement("option");
+        opt.value = u;
+        opt.textContent = u;
+        sel.appendChild(opt);
+      });
+
+      const current = localStorage.getItem("ot:currentUser");
+      if(current && list.includes(current)) sel.value = current;
+      if(!sel.value && list.length) sel.value = list[0];
+    }
+
+    function ensureUserListHas(u){
+      const raw = localStorage.getItem("ot:users");
+      let list = [];
+      try{ list = raw ? JSON.parse(raw) : []; }catch{ list=[]; }
+      if(!list.includes(u)){ list.push(u); }
+      localStorage.setItem("ot:users", JSON.stringify(list));
+    }
+
+    OT.byId("createUser").onclick = ()=>{
+      const u = (input.value || "").trim();
+      if(!u) return OT.toast("Enter a username", "bad");
+      ensureUserListHas(u);
+      localStorage.setItem("ot:currentUser", u);
+      // Create default data for them
+      if(!localStorage.getItem(`ot:${u}`)){
+        localStorage.setItem(`ot:${u}`, JSON.stringify(structuredClone(OT.DEFAULT_DATA)));
+      }
+      OT.toast("User created", "ok");
+      refresh();
+    };
+
+    OT.byId("loadUser").onclick = ()=>{
+      const u = sel.value;
+      if(!u) return OT.toast("No user selected", "bad");
+      localStorage.setItem("ot:currentUser", u);
+      location.href = "index.html";
+    };
+
+    OT.byId("deleteUser").onclick = ()=>{
+      const u = sel.value;
+      if(!u) return;
+      if(!confirm(`Delete user '${u}' (local only)?`)) return;
+
+      localStorage.removeItem(`ot:${u}`);
+      let list = [];
+      try{ list = JSON.parse(localStorage.getItem("ot:users")||"[]"); }catch{ list=[]; }
+      list = list.filter(x=> x!==u);
+      localStorage.setItem("ot:users", JSON.stringify(list));
+
+      const cur = localStorage.getItem("ot:currentUser");
+      if(cur === u) localStorage.removeItem("ot:currentUser");
+
+      OT.toast("User deleted", "ok");
+      refresh();
+    };
+
+    OT.byId("exportBtn").onclick = ()=>{
+      const u = sel.value;
+      if(!u) return;
+      const raw = localStorage.getItem(`ot:${u}`) || "{}";
+      const blob = new Blob([raw], {type:"application/json"});
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `order-tracker-${u}.json`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    };
+
+    OT.byId("importBtn").onclick = async ()=>{
+      const u = sel.value;
+      if(!u) return OT.toast("Select a user first", "bad");
+      const f = OT.byId("importFile").files?.[0];
+      if(!f) return OT.toast("Choose a JSON file", "bad");
+      const text = await f.text();
+      try{
+        const obj = JSON.parse(text);
+        localStorage.setItem(`ot:${u}`, JSON.stringify(obj));
+        OT.toast("Imported", "ok");
+      }catch(e){
+        OT.toast("Invalid JSON", "bad");
+      }
+    };
+
+    OT.byId("goApp").onclick = ()=>{
+      const u = localStorage.getItem("ot:currentUser");
+      if(!u) return OT.toast("Pick a user first", "bad");
+      location.href = "index.html";
+    };
+
+    refresh();
+  </script>
+</body>
+</html>
