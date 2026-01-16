@@ -1,9 +1,13 @@
-
 /**
  * Order Tracker - Web MVP (vanilla JS)
- * Data model mirrors the Python app (open/finished/links/kb_texts/kb_tabs/categories/theme). 
+ * Data model mirrors the Python app (open/finished/links/kb_texts/kb_tabs/categories/theme).
  * Persistence: localStorage per user.
  */
+
+// ---- Compatibility: structuredClone polyfill (for older browsers/VMs) ----
+if (typeof structuredClone !== "function") {
+  window.structuredClone = (obj) => JSON.parse(JSON.stringify(obj));
+}
 
 const DEFAULT_TASKS = [
   "MATERIAL LIST",
@@ -201,23 +205,8 @@ function loadFromKeyPreview(key){
 
   State.preview = true;
 
-  // 🔑 CRITICAL FIX: normalize shared data
+  // Replace with normalized copy to prevent missing fields / crashes
   State.data = normalizeData(shared);
-
-  applyTheme(State.data.theme || "dark");
-  updateTopbar();
-  toast("Loaded shared data (preview)", "ok");
-}
-
-
-  // Merge shared payload in a controlled way
-  State.data.open = shared.open || [];
-  State.data.finished = shared.finished || [];
-  State.data.links = shared.links || [];
-  State.data.kb_texts = shared.kb_texts || [];
-  State.data.kb_tabs = shared.kb_tabs || [{name:"General", color:"#3b82f6", rows:[]}];
-  State.data.categories = shared.categories || State.data.categories;
-  State.data.theme = shared.theme || State.data.theme;
 
   applyTheme(State.data.theme || "dark");
   updateTopbar();
@@ -248,8 +237,6 @@ function el(html){
 function clear(node){ while(node.firstChild) node.removeChild(node.firstChild); }
 
 function byId(id){ return document.getElementById(id); }
-
-
 
 function normalizeData(obj){
   // Accept:
@@ -296,17 +283,17 @@ function normalizeData(obj){
     o.val23 ??= "";
     o.notes ??= [];
     o.files ??= [];
-    // legacy: python uses category; keep
     o.category ??= out.categories?.[0]?.name || "Default";
+
     // tasks
     if(!Array.isArray(o.tasks) || !o.tasks.length){
       const cat = out.categories.find(c=>c.name===o.category) || out.categories[0];
       const tpl = (cat?.tasks?.length ? cat.tasks : DEFAULT_TASKS);
       o.tasks = tpl.map(t=>({name:t, done:false}));
     } else {
-      // ensure task objects
       o.tasks = o.tasks.map(t=> (typeof t === "string") ? ({name:t, done:false}) : ({name:t.name||"", done:!!t.done}));
     }
+
     // files: allow strings/paths from python; web expects {name,url}
     if(Array.isArray(o.files)){
       o.files = o.files.map((f)=>{
