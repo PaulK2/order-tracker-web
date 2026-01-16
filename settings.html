@@ -362,7 +362,10 @@
           categories: OT.State.data.categories || [],
           theme: OT.State.data.theme || "dark",
         };
-        keyBox.value = OT.encodeKey(payload);
+        keyBox.value = OT.encodeKey(payload);           // show key
+        OT.loadFromKeyPreview(keyBox.value);           // load preview
+        OT.restoreFromPreview(); location.reload();     // exit preview
+
         OT.toast("Key generated", "ok");
       };
 
