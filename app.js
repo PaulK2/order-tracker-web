@@ -36,9 +36,12 @@ const DEFAULT_DATA = {
 const State = {
   user: null,
   preview: false,
-  snapshot: null,
+  snapshot: null, // legacy/unused now, kept for compatibility
   data: structuredClone(DEFAULT_DATA),
 };
+
+// Persist preview across navigation (tab/session only; does NOT touch user data)
+const PREVIEW_PAYLOAD_KEY = "ot:previewPayload";
 
 function nowTs(){
   const d = new Date();
@@ -104,7 +107,9 @@ function toast(msg, kind="ok"){
 
 function copyToClipboard(text){
   if(!text){ toast("Nothing to copy", "bad"); return; }
-  navigator.clipboard.writeText(text).then(()=> toast("Copied", "ok")).catch(()=> toast("Copy failed", "bad"));
+  navigator.clipboard.writeText(text)
+    .then(()=> toast("Copied", "ok"))
+    .catch(()=> toast("Copy failed", "bad"));
 }
 
 function ensureCategories(){
@@ -168,6 +173,20 @@ function initCommon(){
   }
   if(u && !State.user) loadUser(u);
 
+  // If preview payload exists, activate preview mode (persists across pages)
+  const p = sessionStorage.getItem(PREVIEW_PAYLOAD_KEY);
+  if(p){
+    try{
+      State.preview = true;
+      State.snapshot = null;
+      State.data = JSON.parse(p);
+      applyTheme(State.data.theme || "dark");
+      updateTopbar();
+    } catch(e){
+      sessionStorage.removeItem(PREVIEW_PAYLOAD_KEY);
+    }
+  }
+
   // Wire "switch user"
   document.querySelectorAll("[data-switch-user]").forEach(btn=>{
     btn.addEventListener("click", ()=> location.href = "users.html");
@@ -198,15 +217,14 @@ function loadFromKeyPreview(key){
     return;
   }
 
-  // Save snapshot only once
-  if(!State.preview){
-    State.snapshot = structuredClone(State.data);
-  }
+  const normalized = normalizeData(shared);
+
+  // Persist preview across navigation in this tab only
+  sessionStorage.setItem(PREVIEW_PAYLOAD_KEY, JSON.stringify(normalized));
 
   State.preview = true;
-
-  // Replace with normalized copy to prevent missing fields / crashes
-  State.data = normalizeData(shared);
+  State.snapshot = null;
+  State.data = normalized;
 
   applyTheme(State.data.theme || "dark");
   updateTopbar();
@@ -214,15 +232,19 @@ function loadFromKeyPreview(key){
 }
 
 function restoreFromPreview(){
-  if(!State.preview || !State.snapshot){
-    toast("Already on your data", "warn");
+  if(!State.user){
+    toast("No user loaded", "bad");
     return;
   }
-  State.data = structuredClone(State.snapshot);
-  State.snapshot = null;
+
+  sessionStorage.removeItem(PREVIEW_PAYLOAD_KEY);
+
   State.preview = false;
-  applyTheme(State.data.theme || "dark");
-  saveUser();
+  State.snapshot = null;
+
+  // Reload real user data from localStorage
+  loadUser(State.user);
+
   toast("Restored your data", "ok");
 }
 
