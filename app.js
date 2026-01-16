@@ -187,13 +187,28 @@ function decodeKey(key){
 
 function loadFromKeyPreview(key){
   let shared;
-  try{ shared = decodeKey(key); }
-  catch(e){ toast("Invalid key", "bad"); return; }
+  try {
+    shared = decodeKey(key);
+  } catch(e){
+    toast("Invalid key", "bad");
+    return;
+  }
 
+  // Save snapshot only once
   if(!State.preview){
     State.snapshot = structuredClone(State.data);
   }
+
   State.preview = true;
+
+  // 🔑 CRITICAL FIX: normalize shared data
+  State.data = normalizeData(shared);
+
+  applyTheme(State.data.theme || "dark");
+  updateTopbar();
+  toast("Loaded shared data (preview)", "ok");
+}
+
 
   // Merge shared payload in a controlled way
   State.data.open = shared.open || [];
