@@ -172,55 +172,111 @@ function initCommon(){
 
 /* ---------- Data Key (share) ---------- */
 
-function encodeKey(obj){
-  // Simple base64 of UTF-8 JSON (no compression). Good enough for MVP.
-  const json = JSON.stringify(obj);
-  const utf8 = encodeURIComponent(json).replace(/%([0-9A-F]{2})/g, (_,p)=> String.fromCharCode(parseInt(p,16)));
-  return btoa(utf8);
-}
-function decodeKey(key){
-  const bin = atob(key.trim());
-  const utf8 = Array.from(bin, c=> `%${c.charCodeAt(0).toString(16).padStart(2,"0").toUpperCase()}`).join("");
-  const json = decodeURIComponent(utf8);
+// ---------- Data Key / Preview Mode (robust) ----------
+
+// Use base64url (safe for copy/paste) + UTF-8 safe encoding.
+OT.encodeKey = function (obj) {
+  const json = JSON.stringify(obj ?? {});
+  const utf8 = new TextEncoder().encode(json);
+  let bin = "";
+  utf8.forEach(b => (bin += String.fromCharCode(b)));
+  const b64 = btoa(bin);
+  // base64url
+  return b64.replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
+};
+
+OT.decodeKey = function (key) {
+  const k = String(key || "").trim();
+  if (!k) throw new Error("Empty key");
+
+  // base64url -> base64 + padding
+  let b64 = k.replaceAll("-", "+").replaceAll("_", "/");
+  const pad = b64.length % 4;
+  if (pad) b64 += "=".repeat(4 - pad);
+
+  const bin = atob(b64);
+  const bytes = new Uint8Array([...bin].map(ch => ch.charCodeAt(0)));
+  const json = new TextDecoder().decode(bytes);
   return JSON.parse(json);
-}
+};
 
-function loadFromKeyPreview(key){
-  let shared;
-  try{ shared = decodeKey(key); }
-  catch(e){ toast("Invalid key", "bad"); return; }
+// Where preview state is stored
+OT.PREVIEW_STORAGE_KEY = "ot_preview_payload_v1";
 
-  if(!State.preview){
-    State.snapshot = structuredClone(State.data);
+// True if currently previewing
+OT.isPreview = function () {
+  return !!localStorage.getItem(OT.PREVIEW_STORAGE_KEY);
+};
+
+// Load preview payload and activate preview mode
+OT.loadFromKeyPreview = function (key) {
+  const payload = OT.decodeKey(key);
+
+  // Basic shape normalization (prevents crashes)
+  payload.open ||= [];
+  payload.finished ||= [];
+  payload.links ||= [];
+  payload.kb_texts ||= [];
+  payload.kb_tabs ||= [{ name: "General", color: "#3b82f6", rows: [] }];
+  payload.categories ||= [{ name: "Default", color: "#3b82f6", tasks: [...OT.DEFAULT_TASKS] }];
+  payload.theme ||= "dark";
+
+  localStorage.setItem(OT.PREVIEW_STORAGE_KEY, JSON.stringify(payload));
+  OT.State.data = payload;
+
+  // apply theme + banners + counters
+  OT.applyTheme(payload.theme);
+  OT.updateTopCounts?.();
+  OT.updatePreviewBanner?.(true);
+};
+
+// Restore normal data (exit preview)
+OT.restoreFromPreview = function () {
+  localStorage.removeItem(OT.PREVIEW_STORAGE_KEY);
+  // Reload the current user normally (initCommon does it on page load)
+};
+
+// Patch OT.initCommon so preview loads automatically if present
+const _oldInitCommon = OT.initCommon;
+OT.initCommon = function () {
+  _oldInitCommon();
+
+  // If preview exists, use it and disable saving
+  const p = localStorage.getItem(OT.PREVIEW_STORAGE_KEY);
+  if (p) {
+    try {
+      const payload = JSON.parse(p);
+      OT.State.data = payload;
+      OT.applyTheme(payload.theme || "dark");
+      OT.updateTopCounts?.();
+      OT.updatePreviewBanner?.(true);
+      OT.toast?.("Preview mode enabled", "ok");
+    } catch (e) {
+      // if corrupted, drop it
+      localStorage.removeItem(OT.PREVIEW_STORAGE_KEY);
+    }
+  } else {
+    OT.updatePreviewBanner?.(false);
   }
-  State.preview = true;
+};
 
-  // Merge shared payload in a controlled way
-  State.data.open = shared.open || [];
-  State.data.finished = shared.finished || [];
-  State.data.links = shared.links || [];
-  State.data.kb_texts = shared.kb_texts || [];
-  State.data.kb_tabs = shared.kb_tabs || [{name:"General", color:"#3b82f6", rows:[]}];
-  State.data.categories = shared.categories || State.data.categories;
-  State.data.theme = shared.theme || State.data.theme;
-
-  applyTheme(State.data.theme || "dark");
-  updateTopbar();
-  toast("Loaded shared data (preview)", "ok");
-}
-
-function restoreFromPreview(){
-  if(!State.preview || !State.snapshot){
-    toast("Already on your data", "warn");
+// Make saveUser a no-op in preview mode (critical!)
+const _oldSaveUser = OT.saveUser;
+OT.saveUser = function () {
+  if (OT.isPreview()) {
+    OT.toast?.("Preview mode: saving disabled", "bad");
     return;
   }
-  State.data = structuredClone(State.snapshot);
-  State.snapshot = null;
-  State.preview = false;
-  applyTheme(State.data.theme || "dark");
-  saveUser();
-  toast("Restored your data", "ok");
-}
+  return _oldSaveUser();
+};
+
+// Helper to show/hide banner (works with your existing HTML banner)
+OT.updatePreviewBanner = function (on) {
+  const el = document.getElementById("previewBanner");
+  if (!el) return;
+  el.style.display = on ? "block" : "none";
+};
+
 
 /* ---------- Page helpers ---------- */
 
