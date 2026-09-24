@@ -54,7 +54,7 @@ JSON with defaults. The exact original record is backed up before a v2 save.
 Other existing profiles are preserved too; their original resources can be
 accessed through **Settings → My original resources**.
 
-**Pavel's actual browser records are not in this repository.** The developer
+**Pavel's personal orders and notes are not in this repository.** The developer
 cannot retrieve another device's localStorage. The migration runs when Pavel
 opens the updated site in the same browser and at the same origin he previously
 used. A different browser, device, protocol or hostname has separate storage.
@@ -77,7 +77,8 @@ for server-enforced registration, account login or synchronized personal records
 
 - `data/public-board.json` is fetched for all users and devices.
 - `data/lan-service.json` provides the published LAN resource baseline.
-- On Pavel's original browser, his existing LAN resources take precedence.
+- On Pavel's original browser, his customized LAN resources take precedence.
+  A newly created, empty Pavel profile uses the published resources.
 - Local workspace edits take precedence on their device and are labeled as local.
 - **Write an update** creates an explicitly labeled local draft.
 - **Prepare publication** and **Publish LAN Service** prepare reviewed JSON and
@@ -88,9 +89,11 @@ for server-enforced registration, account login or synchronized personal records
   snapshots are included in profile exports, but imports do not silently overwrite
   an existing shared workspace.
 
-To publish Pavel's resources across devices, use Settings on his original browser
-and commit the prepared LAN JSON. Until that happens, other devices see the empty
-published knowledge base and the default LAN checklist, not invented content.
+Pavel's supplied resource export is published in `data/lan-service.json`: 10 links,
+5 common texts, 5 reference tabs containing 32 rows, and 3 checklist templates.
+These resources are available across devices. Original labels, URLs, colors and
+tab-separated SAP values are preserved. To publish later changes, use Settings
+on the device with those edits and commit the prepared LAN JSON.
 
 ## Screenshot import
 

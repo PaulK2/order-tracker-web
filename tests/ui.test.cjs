@@ -172,6 +172,44 @@ test("Pavel migrations preserve content and move resources out of personal track
   assert.match(a.doc.body.textContent, /Preserved update/);
   assert.match(a.doc.body.textContent, /Completed history/);
 });
+test("published LAN resources load on a fresh device, retain SAP clipboard columns and named colors", async (t) => {
+  const a = await setup({
+    "ot:users": ["New User"],
+    "ot:currentUser": "New User",
+    "ot:New User": D.emptyData(),
+  }, "#products/lan/links");
+  t.after(() => a.w.close());
+  assert.equal(a.doc.querySelectorAll('#main [data-action="copy-link"]').length, 10);
+  await a.route("products/lan/knowledge");
+  assert.equal(a.doc.querySelectorAll('#main [data-action="copy-text"]').length, 5);
+  assert.equal(a.doc.querySelector("#resourceTab").options.length, 5);
+  await a.click('[data-action="copy-row"][data-index="9"]');
+  assert.deepEqual(a.w.copied.split("\t"), [
+    "F", "", "", "xxx_xxx", "1", "st", "", "", "", "", "", "D040204 ", "A1 Tele",
+  ]);
+  a.doc.querySelector("#resourceTab").value = "2";
+  a.doc.querySelector("#resourceTab").dispatchEvent(new a.w.Event("change", { bubbles: true }));
+  await tick();
+  await a.click('[data-action="edit-tab"]');
+  assert.equal(a.doc.querySelector('#modalForm input[type="color"]').value, "#008000");
+  a.doc.querySelector("#modal").close();
+  await a.route("products/lan/templates");
+  assert.equal(a.doc.querySelectorAll("#main .task-row").length, 23);
+  await a.click('[data-action="edit-template"][data-index="1"]');
+  assert.equal(a.doc.querySelector('#modalForm input[type="color"]').value, "#ffa500");
+});
+test("a newly registered Pavel uses published resources without losing personal profile data", async (t) => {
+  const a = await setup({}, "#users");
+  t.after(() => a.w.close());
+  const form = a.doc.querySelector("#createUserForm");
+  form.elements.username.value = "Pavel";
+  form.elements.passport.value = "CDC2026001";
+  await a.submit("#createUserForm");
+  await a.route("products/lan/links");
+  assert.match(a.doc.querySelector("#main").textContent, /SAP Logon/);
+  assert.equal(a.saved("Pavel").open.length, 0);
+  assert.equal(a.saved("Pavel").links.length, 0);
+});
 test("order creation, checklist changes, notes, finish and restore preserve all references", async (t) => {
   const a = await setup(pavelSeed());
   t.after(() => a.w.close());

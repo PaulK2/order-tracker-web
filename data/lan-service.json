@@ -1,14 +1,247 @@
 {
   "version": 1,
   "source": "Pavel",
-  "description": "Published LAN Service resources. Pavel's existing browser data is preserved automatically on his device. Publish his resources here from Settings to make them available on other devices.",
-  "links": [],
-  "kb_texts": [],
-  "kb_tabs": [{ "name": "General", "color": "#3974ee", "rows": [] }],
+  "links": [
+    {
+      "name": "SAP Logon",
+      "link": "https://sapep.a1telekom.inside/irj/servlet/prt/portal/prtroot/pcd!3aportal_content!2fat.a1telekom.fl_a1telekom!2fat.a1telekom.fl_systeme!2fat.a1.GUI!2fat.a1.ERP_010?sap-config-mode=true"
+    },
+    {
+      "name": "Protokoll",
+      "link": "https://a1g.sharepoint.com/sites/o365CDC-ITCSKompetenzTeam/_layouts/15/Doc.aspx?sourcedoc={d02b7466-6a61-4a02-8eeb-4b4a2b405d0d}&action=edit&wd=target%28Komp.%20Meeting%202025.one%7Cc069b1df-cb8d-421b-95c0-e1aef84c3d11%2F11.09.2025%7C95f16298-511c-4a46-b85a-72e07dd6a70c%2F%29&wdorigin=NavigationUrl"
+    },
+    {
+      "name": "Ciscoliste",
+      "link": "https://a1g.sharepoint.com/:x:/r/sites/o365CiscoShortcut/Shared%20Documents/General/Bestellnummern_CiscoShortCut.xlsx?d=w808a189874af4cd584213c76b4cc59c0&csf=1&web=1&e=2m5OsX"
+    },
+    {
+      "name": "Cisco Commerce",
+      "link": "https://id.cisco.com/oauth2/default/v1/authorize?response_type=code&scope=openid%20profile%20address%20offline_access%20cci_admemberOf%20email&client_id=cae-okta-web-gslb-01&state=hIAZAZZSVMv2QRZPVyTKKCvicXc&redirect_uri=https%3A%2F%2Fapps.cisco.com%2Fcb%2Fsso&nonce=-SHoi6XRxECh1nhnn9O-jgSJaSk2Xge7eKH65i2eDkY"
+    },
+    {
+      "name": "A1 Lan Service - Guide",
+      "link": "https://a1g-my.sharepoint.com/:w:/g/personal/piskov_angel_extern_a1_at/EWO0Lh5QiRFAtPvVps2oLfcBNfH_I71ni4Gq56tuLKG8Ew?e=hgO4rQ"
+    },
+    {
+      "name": "SAP Material Catalog",
+      "link": "https://a1-group-prd.launchpad.cfapps.eu20.hana.ondemand.com/site/flp-prd#ZLOG_MIS-Display?sap-ui-app-id-hint=saas_approuter_a1.zmat.MaterialMaster"
+    },
+    {
+      "name": "Business Web",
+      "link": "http://bweb.a1telekom.inside:50000/bweb/b2b/init.do"
+    },
+    {
+      "name": "Equipment Search",
+      "link": "https://sapep.a1telekom.inside/irj/portal/equiSearch"
+    },
+    {
+      "name": "Produktionsauftrag",
+      "link": "https://a1g.sharepoint.com/:x:/r/sites/o365CDC-ITCSKompetenzTeam/_layouts/15/Doc.aspx?sourcedoc=%7B266CC156-AE6D-47A2-8E57-6922E8C94750%7D&file=Produktionsauftrag.xlsx&action=default&mobileredirect=true"
+    },
+    {
+      "name": "Intersport Kunde Status",
+      "link": "https://a1g.sharepoint.com/:x:/r/sites/o365Intersport/_layouts/15/Doc2.aspx?action=edit&sourcedoc=%7B87e482f9-9ea2-41cc-a720-fc65bb72624d%7D&wdOrigin=TEAMS-MAGLEV.teamsSdk_ns.rwc&wdExp=TEAMS-TREATMENT&wdhostclicktime=1763373304972&web=1"
+    }
+  ],
+  "kb_texts": [
+    "1-000-000-341",
+    "Auf Plausibilität geprüft - Checked for plausibility",
+    "Leitfaden anbei, bitte beachten!",
+    "BW Order angelegt. Leitfaden angehängt.",
+    "Business Document attached!"
+  ],
+  "kb_tabs": [
+    {
+      "name": "Produktionsauftrag",
+      "color": "#3b82f6",
+      "rows": [
+        {
+          "name": "A1 LAN ( Auftrag )",
+          "value": "30030375"
+        },
+        {
+          "name": "A1 CCM",
+          "value": "30050271"
+        },
+        {
+          "name": "A1 Firewall and VPN (Auftrag)",
+          "value": "30030399"
+        },
+        {
+          "name": "iWAN",
+          "value": "30055783"
+        },
+        {
+          "name": "A1 Managed Datacenter Service ICT-S",
+          "value": "30030384"
+        },
+        {
+          "name": "A1 Content Security Service ICT-S",
+          "value": "30031629"
+        },
+        {
+          "name": "A1 Security Operation Center Others",
+          "value": "30056335"
+        },
+        {
+          "name": "Sachkonto (LIZENZ & SOFTWARE)",
+          "value": "73101085"
+        },
+        {
+          "name": "Sachkonto (SUPPORT/CCM/FIREWALL)",
+          "value": "73200020"
+        },
+        {
+          "name": "EXTRA SAP POSITION",
+          "value": "F\t\t\txxx_xxx\t1\tst\t\t\t\t\t\tD040204 \tA1 Tele"
+        }
+      ]
+    },
+    {
+      "name": "Important",
+      "color": "red",
+      "rows": [
+        {
+          "name": "WARENEINGANG",
+          "value": "Material von LagerOrt zu -> Field Service = kein WARENEINGANG BUCHEN! Nur wenn Material zu den Kuden geliefert werden soll."
+        }
+      ]
+    },
+    {
+      "name": "Common",
+      "color": "Green",
+      "rows": [
+        {
+          "name": "POS10 SUP Intersport",
+          "value": "F\t\t\tPOS10_SUP_100200853\t1\tst\t\t\t\t\t\tD040204 \tA1 Tele"
+        },
+        {
+          "name": "POS20 LIC Intersport",
+          "value": "F\t\t\tPOS20_LIC_100200853\t1\tst\t\t\t\t\t\tD040204 \tA1 Tele"
+        },
+        {
+          "name": "POS20 SUP Intersport",
+          "value": "F\t\t\tPOS20_SUP_100200853\t1\tst\t\t\t\t\t\tD040204 \tA1 Tele"
+        },
+        {
+          "name": "POS10 LIC Intersport",
+          "value": "F\t\t\tPOS10_LIC_100200853\t1\tst\t\t\t\t\t\tD040204 \tA1 Tele"
+        }
+      ]
+    },
+    {
+      "name": "Mat. NR.",
+      "color": "yellow",
+      "rows": [
+        {
+          "name": "MR36-HW",
+          "value": "1-000-032-986"
+        },
+        {
+          "name": "LIC-ENT-5YR",
+          "value": "1-000-019-731"
+        },
+        {
+          "name": "MA-PWR-CORD-EU",
+          "value": "1-000-010-285"
+        },
+        {
+          "name": "MX67-HW",
+          "value": "1-000-023-697"
+        },
+        {
+          "name": "LIC-MX67-ENT-3YR",
+          "value": "1-000-042-470"
+        },
+        {
+          "name": "LIC-MX67-SEC-3YR",
+          "value": "1-000-023-698"
+        },
+        {
+          "name": "MS130-24P",
+          "value": "1-000-045-672"
+        },
+        {
+          "name": "LIC-ENT-3YR",
+          "value": "1-000-010-015"
+        },
+        {
+          "name": "LIC-MS120-8FP-3YR",
+          "value": "1-000-019-943"
+        },
+        {
+          "name": "Z4C-HW",
+          "value": "1-000-047-628"
+        },
+        {
+          "name": "A-FLEX-3",
+          "value": "1-000-035-032"
+        }
+      ]
+    },
+    {
+      "name": "Wartung",
+      "color": "purple",
+      "rows": [
+        {
+          "name": "8x5xNBD",
+          "value": "1-000-000-341"
+        },
+        {
+          "name": "8x5x4",
+          "value": "1-000-000-340"
+        },
+        {
+          "name": "24x7x4",
+          "value": "1-000-000-342"
+        },
+        {
+          "name": "24x7x2",
+          "value": "1-000-000-343"
+        },
+        {
+          "name": "SW SUP",
+          "value": "1-000-000-724"
+        },
+        {
+          "name": "SW UPGRADE",
+          "value": "1-000-000-725"
+        }
+      ]
+    }
+  ],
   "categories": [
     {
       "name": "Default",
-      "color": "#3974ee",
+      "color": "#3b82f6",
+      "tasks": [
+        "MATERIAL LIST",
+        "BUSINESS WEB ORDER",
+        "SAP AUFTRAG",
+        "SAP VERKNÜPFUNG",
+        "CISCO ORDER FINISHED",
+        "WARENEINGANG GEBUCHT",
+        "SAP EFLOW"
+      ]
+    },
+    {
+      "name": "Intersport",
+      "color": "Orange",
+      "tasks": [
+        "BUSINESS WEB ORDER",
+        "LEITFADEN",
+        "NGN ACCESS",
+        "MATERIAL LIST",
+        "SAP AUFTRAG",
+        "SAP VERKNÜPFUNG",
+        "CISCO ORDER FINISHED",
+        "WARENEINGANG GEBUCHT",
+        "SAP EFLOW"
+      ]
+    },
+    {
+      "name": "Webex",
+      "color": "green",
       "tasks": [
         "MATERIAL LIST",
         "BUSINESS WEB ORDER",

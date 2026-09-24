@@ -488,8 +488,25 @@
       content = `<div class="section-header"><div><h2>Checklist templates</h2><p>Used for new ${p.name} orders. Existing order checklists keep their progress.</p></div>${btn("add-template", "New template", "plus", "primary small", `data-product="${id}"`)}</div><div class="stack">${w.categories.map((c, i) => `<section class="panel"><div class="panel-body"><div class="row between"><div><h3>${esc(c.name)}</h3><span class="hint">${c.tasks.length} checklist items</span></div><div class="row">${btn("edit-template", "Edit", "edit", "small", `data-index="${i}" data-product="${id}"`)}${btn("remove-resource", "", "trash", "ghost icon-button danger", `data-kind="categories" data-index="${i}" data-product="${id}" aria-label="Remove template"`)}</div></div><div class="stack" style="gap:8px;margin-top:16px">${c.tasks.map((t) => `<div class="task-row">${icon("check")}<span>${esc(t)}</span></div>`).join("") || '<p class="hint">No tasks yet. Edit this template to add them.</p>'}</div></div></section>`).join("")}</div>`;
     return `<div class="workspace-hero"><div class="product-symbol">${icon(p.icon)}</div><div><div class="eyebrow">PRODUCT WORKSPACE</div><h1>${p.name}</h1><p>${p.label}</p></div></div><nav class="tabs" aria-label="Product resources">${tabs.map(([key, name]) => `<a class="tab ${tab === key ? "active" : ""}" href="#products/${id}/${key}">${name}</a>`).join("")}</nav>${content}`;
   }
-  const safeColor = (color) =>
-    /^#[\da-f]{6}$/i.test(color) ? color : "#3974ee";
+  function safeColor(color) {
+    const value = String(color || "").trim().toLowerCase();
+    if (/^#[\da-f]{6}$/.test(value)) return value;
+    // Older resource exports use CSS names. Convert to hex for color inputs too.
+    const named = {
+      red: "#ff0000",
+      green: "#008000",
+      blue: "#0000ff",
+      yellow: "#ffff00",
+      orange: "#ffa500",
+      purple: "#800080",
+      black: "#000000",
+      white: "#ffffff",
+      gray: "#808080",
+      grey: "#808080",
+      pink: "#ffc0cb",
+    };
+    return Object.hasOwn(named, value) ? named[value] : "#3974ee";
+  }
   function settingsView() {
     return (
       heading(

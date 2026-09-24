@@ -323,12 +323,12 @@
         const pavel = [...users(), current()].find(
           (n) => n && n.toLowerCase() === "pavel",
         );
-        if (pavel && storage.getItem(`ot:${pavel}`) !== null)
-          return {
-            data: extractWorkspace(load(pavel)),
-            source: pavel,
-            local: true,
-          };
+        if (pavel && storage.getItem(`ot:${pavel}`) !== null) {
+          const resources = extractWorkspace(load(pavel));
+          // A newly registered Pavel has no legacy resources to override the publication.
+          if (JSON.stringify(resources) !== JSON.stringify(emptyWorkspace(id)))
+            return { data: resources, source: pavel, local: true };
+        }
       }
       return {
         data: normalizeWorkspace(published || {}, id),
