@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "source": "Pavel",
+  "description": "Published LAN Service resources. Pavel's existing browser data is preserved automatically on his device. Publish his resources here from Settings to make them available on other devices.",
+  "links": [],
+  "kb_texts": [],
+  "kb_tabs": [{ "name": "General", "color": "#3974ee", "rows": [] }],
+  "categories": [
+    {
+      "name": "Default",
+      "color": "#3974ee",
+      "tasks": [
+        "MATERIAL LIST",
+        "BUSINESS WEB ORDER",
+        "SAP AUFTRAG",
+        "SAP VERKNÜPFUNG",
+        "CISCO ORDER FINISHED",
+        "WARENEINGANG GEBUCHT",
+        "SAP EFLOW"
+      ]
+    }
+  ]
+}

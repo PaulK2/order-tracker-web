@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "posts": [
+    {
+      "id": "workspace-launch",
+      "title": "Welcome to the CDC Workspace",
+      "body": "Product knowledge now lives in LAN Service, Standard and PABX. Open orders, finished orders and notes are together in your User area. You can also import a screenshot when creating an order.",
+      "category": "Workspace update",
+      "author": "Workspace",
+      "date": "2026-09-24",
+      "pinned": true
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+node_modules/
+*.traineddata
+*.traineddata.gz
+.DS_Store
