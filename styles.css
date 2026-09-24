@@ -340,9 +340,10 @@ summary:focus-visible {
   display: flex;
   align-items: center;
   gap: 11px;
-  margin: 0 14px 38px;
+  margin: 0 6px 38px;
 }
 .brand-mark {
+  flex-shrink: 0;
   width: 37px;
   height: 38px;
   background: var(--accent);
@@ -356,13 +357,17 @@ summary:focus-visible {
   height: 23px;
 }
 .brand-name {
-  font-size: 18px;
+  display: block;
+  white-space: nowrap;
+  font-size: 16px;
   letter-spacing: -0.6px;
   font-weight: 800;
   line-height: 1.2;
 }
 .brand-sub {
-  font-size: 10px;
+  display: block;
+  white-space: nowrap;
+  font-size: 8px;
   color: var(--muted);
   letter-spacing: 0.13em;
   margin-top: 4px;
@@ -1474,10 +1479,10 @@ details > textarea {
     padding: 26px 10px 16px;
   }
   .brand {
-    margin: 0 12px 30px;
+    margin: 0 8px 30px;
   }
   .brand-name {
-    font-size: 16px;
+    font-size: 14px;
   }
   .brand-mark {
     width: 33px;
