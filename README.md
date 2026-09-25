@@ -35,22 +35,22 @@ synthetic screenshot fixture; its first run downloads language models.
 
 The application deliberately keeps the original website origin and storage keys:
 
-| Purpose | Location |
-| --- | --- |
-| User list | `localStorage['ot:users']` |
-| Selected profile | `localStorage['ot:currentUser']` |
-| User records | `localStorage['ot:<username>']` |
-| Exact original record backup | `localStorage['ot:backup:v1:<username>']` |
-| Backups before an import | `localStorage['ot:backup:import-<timestamp>:<username>']` |
-| Resource edits shared by profiles on one device | `localStorage['ot:workspace:<product>']` |
-| Screenshot attachments | IndexedDB `ot-attachments`, store `images` |
-| Read-only shared preview | `sessionStorage['ot:previewPayload']` |
+| Purpose                                         | Location                                                  |
+| ----------------------------------------------- | --------------------------------------------------------- |
+| User list                                       | `localStorage['ot:users']`                                |
+| Selected profile                                | `localStorage['ot:currentUser']`                          |
+| User records                                    | `localStorage['ot:<username>']`                           |
+| Exact original record backup                    | `localStorage['ot:backup:v1:<username>']`                 |
+| Backups before an import                        | `localStorage['ot:backup:import-<timestamp>:<username>']` |
+| Resource edits shared by profiles on one device | `localStorage['ot:workspace:<product>']`                  |
+| Screenshot attachments                          | IndexedDB `ot-attachments`, store `images`                |
+| Read-only shared preview                        | `sessionStorage['ot:previewPayload']`                     |
 
 On the original browser, Pavel's links, common texts, chart tabs and templates
 are exposed in LAN Service. His personal orders, finished work, notes,
 42x/23x references, tasks, task completion state and attachment links remain in
 his profile. Migration retains unknown fields and never overwrites malformed
-JSON with defaults. The exact original record is backed up before a v2 save.
+JSON with defaults. The exact original record is backed up before migration saves. Version 2 profiles get a separate v2 snapshot; existing v1 backups stay intact.
 Other existing profiles are preserved too; their original resources can be
 accessed through **Settings → My original resources**.
 
@@ -102,13 +102,52 @@ Tesseract.js 7 performs OCR on the device. The engine and English/German languag
 packs are downloaded from pinned/default jsDelivr URLs on first use. The image
 itself is not uploaded to an OCR service.
 
-The importer detects customer name, order name, product, 310x number, BS-ID,
-status and date from labeled details or aligned tables. Missing fields are
-highlighted and remain empty. A review checkbox is required before saving an
-OCR-created order. Arbitrary unlabelled layouts may require manual correction.
-The screenshot is saved in IndexedDB with the order and included in a full JSON
-export. Share keys include image references, not image bytes; use JSON export to
-move images to another device.
+The importer reads **every detected row** in a table or repeated labeled detail
+blocks. Tesseract word positions retain column alignment when cells are blank.
+Order fields include customer, order name, product, 310x, BS-ID, status and date,
+plus 42x/23x references when present. English and German labels are supported.
+
+Selecting, dropping or pasting screenshots starts reading and saves each detected
+row immediately. There is no mandatory review form or missing-field prompt.
+Even a single recognized field creates an entry; a screenshot with no recognized
+fields creates nothing and asks for a clearer image. Missing values remain empty.
+An unrecognized product uses the profile's assigned category, and an unspecified
+status starts as Open. Explicit Completed/Erledigt rows go to Finished.
+
+Each image is stored once in IndexedDB and referenced by its rows. A per-image
+**Undo import** moves imported entries to the recoverable Archive. Closing the
+importer cancels any unfinished image; rows from images already saved remain.
+Reimporting the same screenshot creates new rows. OCR can misread small or
+unlabelled screenshots; entries stay editable and keep the source image and text.
+
+## Profile categories and LAN Service eFlow
+
+Profiles select an assigned category during registration and can change it in
+**Settings → Profile → Assigned order category**. Existing profiles infer a
+uniform recorded product, or default to LAN Service. Changing category retains
+all personal orders, notes and eFlows.
+
+LAN Service profiles have **User → eFlow** in addition to normal order tracking.
+The eFlow importer recognizes 42x number, Date from / Datum von, Bruttobetrag,
+BS-ID and client name. German and English amount separators are supported.
+The tracker sorts oldest to newest with undated entries last, and offers active,
+completed and all views.
+
+Links use matching 42x first, then BS-ID, then an exact, unique client name among
+active LAN orders. Conflicting references or ambiguous matches stay unlinked;
+the entry still saves without a prompt. Edit an entry to optionally choose a
+manual link or keep it unlinked. Client-only completed historical eFlows do not
+automatically match future orders.
+
+**Complete** finishes the eFlow and its linked active order in one profile save,
+preserving all notes, tasks, attachments and references. **Reopen** restores an
+order that was completed by that eFlow, unless another completed eFlow still
+requires it to remain finished. Restoring an order also reopens its linked
+eFlows. Archiving an eFlow retains it in Settings without reopening the order.
+
+Profile JSON backups include category, eFlows, order links and all active or
+archived screenshot attachments. Imported image IDs are remapped consistently
+without overwriting another profile's images.
 
 ## Deployment and rollback
 

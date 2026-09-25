@@ -2,7 +2,8 @@
 (() => {
   "use strict";
   const D = window.CDCData,
-    O = window.CDCOCR;
+    O = window.CDCOCR,
+    T = window.CDCTracking;
   const $ = (id) => document.getElementById(id);
   const esc = (v) =>
     String(v ?? "").replace(
@@ -94,6 +95,7 @@
     publishedLan = {},
     publicationError = "",
     filter = { q: "", product: "", category: "", sort: "newest" },
+    eflowFilter = { q: "", state: "open" },
     resourceTab = 0,
     toastTimer,
     modalCleanup;
@@ -123,6 +125,7 @@
     try {
       const next = store.load(user);
       mutator(next);
+      T.synchronize(next);
       store.save(user, next);
       data = next;
       return true;
@@ -192,6 +195,9 @@
       ["open", "Open orders", data.open.length],
       ["finished", "Finished", data.finished.length],
       ["notes", "Notes", noteCount()],
+      ...(data.assignedProduct === "lan"
+        ? [["eflow", "eFlow", data.eflows.filter((e) => !e.completed).length]]
+        : []),
     ]
       .map(
         ([id, name, count]) =>
@@ -233,7 +239,7 @@
     else if (page === "info") body = infoView();
     else body = dashboard();
     $("app").innerHTML =
-      `<div class="mobile-shade" data-action="menu-close"></div><aside class="sidebar" aria-label="Main navigation"><a class="brand" href="#dashboard"><span class="brand-mark">${icon("layers")}</span><span><span class="brand-name">CDC<span style="font-weight:500"> Workspace</span></span><span class="brand-sub">Order & delivery hub</span></span></a><div class="nav-label">WORKSPACE</div>${navLink("dashboard", "Dashboard", "grid", page === "dashboard")}${navLink("user/open", "User", "user", page === "user", data.open.length)}${navLink("board", "Public Board", "board", page === "board")}<div class="nav-label">PRODUCT CATEGORIES</div>${D.PRODUCTS.map((p) => navLink(`products/${p.id}`, p.name, p.icon, page === "products" && sub === p.id)).join("")}<div class="sidebar-bottom">${navLink("settings", "Settings", "settings", page === "settings")}${navLink("info", "Help & information", "help", page === "info")}<div class="sidebar-note"><div><span class="save-dot"></span>${preview ? "Read-only preview" : user ? "Saved in this browser" : "Your delivery workspace"}</div><div>CDC Workspace <span class="muted">/ 2.0</span></div></div></div></aside><div class="workspace"><header class="topbar"><div class="row">${btn("menu-open", "", "menu", "ghost icon-button menu-button", 'aria-label="Open navigation"')}<div class="breadcrumb"><span class="muted">Workspace</span><span class="muted">/</span><strong>${esc(title)}</strong></div></div><div class="top-actions">${btn("search", `${icon("search")}<span>Search your orders</span><span class="keycap">/</span>`, "", "top-search", 'aria-label="Search your orders"')}<span class="top-divider"></span>${btn("theme", "", "sun", "ghost icon-button", 'aria-label="Toggle color theme"')}<button type="button" class="profile-button" data-action="profiles"><span class="avatar">${esc((user || "G").slice(0, 2).toUpperCase())}</span><span class="profile-label">${esc(user || "Guest")}<small>${preview ? "Preview mode" : user ? "Customer Delivery" : "Select a user"}</small></span>${icon("down")}</button></div></header><main id="main" class="content" tabindex="-1">${preview ? `<div class="banner"><span><b>Shared-data preview.</b> Your saved data is protected; changes are disabled.</span>${btn("preview-exit", "Back to my data", "", "small")}</div>` : ""}${body}<footer class="dashboard-footer"><span>CDC Workspace <span class="muted">·</span> Built around your delivery day.</span><span class="row">${icon("shield")} ${preview ? "Read-only preview" : user ? "Personal records stay in your browser" : "One place for knowledge and work"}</span></footer></main></div>`;
+      `<div class="mobile-shade" data-action="menu-close"></div><aside class="sidebar" aria-label="Main navigation"><a class="brand" href="#dashboard"><span class="brand-mark">${icon("layers")}</span><span><span class="brand-name">CDC<span style="font-weight:500"> Workspace</span></span><span class="brand-sub">Order & delivery hub</span></span></a><div class="nav-label">WORKSPACE</div>${navLink("dashboard", "Dashboard", "grid", page === "dashboard")}${navLink("user/open", "User", "user", page === "user", data.open.length)}${navLink("board", "Public Board", "board", page === "board")}<div class="nav-label">PRODUCT CATEGORIES</div>${D.PRODUCTS.map((p) => navLink(`products/${p.id}`, p.name, p.icon, page === "products" && sub === p.id)).join("")}<div class="sidebar-bottom">${navLink("settings", "Settings", "settings", page === "settings")}${navLink("info", "Help & information", "help", page === "info")}<div class="sidebar-note"><div><span class="save-dot"></span>${preview ? "Read-only preview" : user ? "Saved in this browser" : "Your delivery workspace"}</div><div>CDC Workspace <span class="muted">/ 2.1</span></div></div></div></aside><div class="workspace"><header class="topbar"><div class="row">${btn("menu-open", "", "menu", "ghost icon-button menu-button", 'aria-label="Open navigation"')}<div class="breadcrumb"><span class="muted">Workspace</span><span class="muted">/</span><strong>${esc(title)}</strong></div></div><div class="top-actions">${btn("search", `${icon("search")}<span>Search your orders</span><span class="keycap">/</span>`, "", "top-search", 'aria-label="Search your orders"')}<span class="top-divider"></span>${btn("theme", "", "sun", "ghost icon-button", 'aria-label="Toggle color theme"')}<button type="button" class="profile-button" data-action="profiles"><span class="avatar">${esc((user || "G").slice(0, 2).toUpperCase())}</span><span class="profile-label">${esc(user || "Guest")}<small>${preview ? "Preview mode" : user ? "Customer Delivery" : "Select a user"}</small></span>${icon("down")}</button></div></header><main id="main" class="content" tabindex="-1">${preview ? `<div class="banner"><span><b>Shared-data preview.</b> Your saved data is protected; changes are disabled.</span>${btn("preview-exit", "Back to my data", "", "small")}</div>` : ""}${body}<footer class="dashboard-footer"><span>CDC Workspace <span class="muted">·</span> Built around your delivery day.</span><span class="row">${icon("shield")} ${preview ? "Read-only preview" : user ? "Personal records stay in your browser" : "One place for knowledge and work"}</span></footer></main></div>`;
     bindPage(page, sub, tab);
   }
   function dashboard() {
@@ -338,43 +344,57 @@
         "Choose your profile",
         "Your existing profiles and records stay in this browser.",
       ) +
-      `<div class="account-layout"><section class="panel"><div class="panel-body"><h2>Welcome back</h2><p>Open your own orders, finished work and notes.</p><form id="selectUserForm">${select("username", "Saved user", users.length ? users.map((u) => ({ value: u, label: u })) : [{ value: "", label: "No users on this device" }], user || "")}<button class="primary" ${users.length ? "" : "disabled"}>Open workspace ${icon("arrow")}</button></form>${user ? btn("logout", "Continue as guest", "", "ghost small", 'style="margin-top:15px"') : ""}</div></section><section class="panel"><div class="panel-body"><h2>Create a profile</h2><p>Anyone with the registration passport can get started.</p><form id="createUserForm" class="stack">${field("username", "Your name", "", 'required minlength="2" maxlength="40" autocomplete="off" placeholder="e.g. Pavel"')}${field("passport", "Registration passport", "", 'required type="password" autocomplete="off" placeholder="Enter your registration code"')}<div id="signupError" class="dialog-error" role="alert"></div><button class="primary">Create profile ${icon("plus")}</button></form></div></section></div>`
+      `<div class="account-layout"><section class="panel"><div class="panel-body"><h2>Welcome back</h2><p>Open your own orders, finished work and notes.</p><form id="selectUserForm">${select("username", "Saved user", users.length ? users.map((u) => ({ value: u, label: u })) : [{ value: "", label: "No users on this device" }], user || "")}<button class="primary" ${users.length ? "" : "disabled"}>Open workspace ${icon("arrow")}</button></form>${user ? btn("logout", "Continue as guest", "", "ghost small", 'style="margin-top:15px"') : ""}</div></section><section class="panel"><div class="panel-body"><h2>Create a profile</h2><p>Anyone with the registration passport can get started.</p><form id="createUserForm" class="stack">${field("username", "Your name", "", 'required minlength="2" maxlength="40" autocomplete="off" placeholder="e.g. Pavel"')}${select(
+        "assignedProduct",
+        "Order category",
+        D.PRODUCTS.map((p) => ({ value: p.id, label: p.name })),
+        "lan",
+      )}${field("passport", "Registration passport", "", 'required type="password" autocomplete="off" placeholder="Enter your registration code"')}<div id="signupError" class="dialog-error" role="alert"></div><button class="primary">Create profile ${icon("plus")}</button></form></div></section></div>`
     );
   }
   function userView(tab) {
-    if (!["open", "finished", "notes"].includes(tab)) tab = "open";
+    if (!["open", "finished", "notes", "eflow"].includes(tab)) tab = "open";
     const actions =
-      tab === "notes"
-        ? btn("new-note", "New note", "plus", "primary")
-        : btn("import-order", "Import screenshot", "image") +
-          " " +
-          btn("new-order", "New order", "plus", "primary");
+      tab === "eflow"
+        ? data.assignedProduct === "lan"
+          ? btn("import-eflow", "Import screenshots", "image") +
+            " " +
+            btn("new-eflow", "Add eFlow", "plus", "primary")
+          : ""
+        : tab === "notes"
+          ? btn("new-note", "New note", "plus", "primary")
+          : btn("import-order", "Import screenshot", "image") +
+            " " +
+            btn("new-order", "New order", "plus", "primary");
     return (
       heading(
         "PERSONAL WORKSPACE",
         `${user || "Shared"}’s workspace`,
-        "Track every product in one place. Your orders and notes stay with you.",
+        productName(data.assignedProduct) +
+          " profile · Track orders, notes and your category’s tools.",
         `<div class="row">${actions}</div>`,
       ) +
       personalTabs(tab) +
-      (tab === "notes"
-        ? notesView()
-        : `<div class="toolbar"><div class="search-field">${icon("search")}<input id="orderSearch" aria-label="Search orders" placeholder="Search customer, order, 310x or BS-ID…" value="${esc(filter.q)}"></div><select id="productFilter" aria-label="Filter by product"><option value="">All products</option>${D.PRODUCTS.map((p) => `<option value="${p.id}" ${filter.product === p.id ? "selected" : ""}>${p.name}</option>`).join("")}</select><select id="categoryFilter" aria-label="Filter by checklist template"><option value="">All templates</option>${[...new Set([...data.open, ...data.finished].map((o) => o.category))].map((c) => `<option value="${esc(c)}" ${filter.category === c ? "selected" : ""}>${esc(c)}</option>`).join("")}</select><select id="orderSort" aria-label="Sort orders">${[
-            ["newest", "Newest first"],
-            ["name", "Order name A–Z"],
-            ["customer", "Customer A–Z"],
-            ["date", "Order date"],
-            ["val310", "310x number"],
-            ["val42", "42x number"],
-            ["val23", "23x number"],
-          ]
-            .map(
-              ([v, l]) =>
-                `<option value="${v}" ${filter.sort === v ? "selected" : ""}>${l}</option>`,
-            )
-            .join(
-              "",
-            )}</select>${tab === "finished" ? btn("clear-finished", "Archive all", "", "small ghost") : ""}</div><div id="orderList" class="order-list">${orderList(tab)}</div>`)
+      (tab === "eflow"
+        ? eflowView()
+        : tab === "notes"
+          ? notesView()
+          : `<div class="toolbar"><div class="search-field">${icon("search")}<input id="orderSearch" aria-label="Search orders" placeholder="Search customer, order, 310x or BS-ID…" value="${esc(filter.q)}"></div><select id="productFilter" aria-label="Filter by product"><option value="">All products</option>${D.PRODUCTS.map((p) => `<option value="${p.id}" ${filter.product === p.id ? "selected" : ""}>${p.name}</option>`).join("")}</select><select id="categoryFilter" aria-label="Filter by checklist template"><option value="">All templates</option>${[...new Set([...data.open, ...data.finished].map((o) => o.category))].map((c) => `<option value="${esc(c)}" ${filter.category === c ? "selected" : ""}>${esc(c)}</option>`).join("")}</select><select id="orderSort" aria-label="Sort orders">${[
+              ["newest", "Newest first"],
+              ["name", "Order name A–Z"],
+              ["customer", "Customer A–Z"],
+              ["date", "Order date"],
+              ["val310", "310x number"],
+              ["val42", "42x number"],
+              ["val23", "23x number"],
+            ]
+              .map(
+                ([v, l]) =>
+                  `<option value="${v}" ${filter.sort === v ? "selected" : ""}>${l}</option>`,
+              )
+              .join(
+                "",
+              )}</select>${tab === "finished" ? btn("clear-finished", "Archive all", "", "small ghost") : ""}</div><div id="orderList" class="order-list">${orderList(tab)}</div>`)
     );
   }
   function orderList(tab) {
@@ -489,7 +509,9 @@
     return `<div class="workspace-hero"><div class="product-symbol">${icon(p.icon)}</div><div><div class="eyebrow">PRODUCT WORKSPACE</div><h1>${p.name}</h1><p>${p.label}</p></div></div><nav class="tabs" aria-label="Product resources">${tabs.map(([key, name]) => `<a class="tab ${tab === key ? "active" : ""}" href="#products/${id}/${key}">${name}</a>`).join("")}</nav>${content}`;
   }
   function safeColor(color) {
-    const value = String(color || "").trim().toLowerCase();
+    const value = String(color || "")
+      .trim()
+      .toLowerCase();
     if (/^#[\da-f]{6}$/.test(value)) return value;
     // Older resource exports use CSS names. Convert to hex for color inputs too.
     const named = {
@@ -514,7 +536,12 @@
         "Make yourself at home",
         "Appearance, backups and shared resources.",
       ) +
-      `<div class="grid two"><div class="stack"><section class="panel"><div class="panel-body settings-section"><div class="row between"><div><h2>Appearance</h2><p>Choose the workspace theme that suits you.</p></div><div class="theme-options">${btn("set-theme", "Light", "sun", data.theme === "light" ? "selected" : "", 'data-theme="light"')}${btn("set-theme", "Dark", "moon", data.theme === "dark" ? "selected" : "", 'data-theme="dark"')}</div></div></div></section><section class="panel"><div class="panel-body stack"><div><h2>Your data & backups</h2><p class="hint">Records stay in this browser. Export a backup to keep a copy or move to another device.</p></div><div class="row">${btn("export", "Export my data", "download", "primary small")}${btn("import-data", "Import JSON", "upload", "small")}${btn("export-original", "Original backup", "shield", "small")}${btn("saved-backups", "Saved backups", "clock", "small")}</div><div class="sep"></div><h3>Share a preview</h3><p class="hint">Share your data as a key. Preview mode is read-only and never replaces saved records.</p><div class="row">${btn("share-key", "Create share key", "copy", "small")}${btn("load-preview", "Load a preview", "upload", "small")}</div></div></section><section class="panel"><div class="panel-body stack"><div><h2>Archive</h2><p class="hint">Removed orders and notes remain recoverable here.</p></div>${data.trash.length ? data.trash.map((item, i) => `<div class="resource-row"><div><b class="small">${esc(item.record.name || item.record.title || "Note")}</b><p class="hint">${esc(item.kind)} · ${esc(dateLabel(item.removedAt))}</p></div>${btn("unarchive", "Restore", "refresh", "small", `data-index="${i}"`)}</div>`).join("") : '<p class="hint">Your archive is empty.</p>'}</div></section></div><div class="stack"><section class="panel"><div class="panel-body stack"><div><h2>Publish product resources</h2><p class="hint">Local resource edits are shared by profiles on this device. Publish a reviewed copy to make them available to everyone.</p></div><div class="row">${btn("publish-lan", "Publish LAN Service", "upload", "small primary")}${btn("legacy-resources", "My original resources", "book", "small")}</div><p class="hint">Publishing uses the repository’s normal GitHub editor and commit process. Order records and personal notes are excluded.</p></div></section><section class="panel"><div class="panel-body stack"><h2>Profile</h2><div class="row"><span class="avatar">${esc((user || "G").slice(0, 2).toUpperCase())}</span><div><b>${esc(user || "Guest")}</b><p class="hint">Customer Delivery</p></div></div><div class="row">${btn("profiles", "Switch user", "user", "small")}${btn("logout", "Sign out", "", "ghost small")}</div></div></section><section class="panel"><div class="panel-body stack"><h2>Adding more products</h2><p class="hint">LAN Service, Standard and PABX are ready to use. More product workspaces can be added as your delivery toolkit grows.</p><a class="text-link" href="#board">Visit the Public Board ${icon("arrow")}</a></div></section></div></div>`
+      `<div class="grid two"><div class="stack"><section class="panel"><div class="panel-body settings-section"><div class="row between"><div><h2>Appearance</h2><p>Choose the workspace theme that suits you.</p></div><div class="theme-options">${btn("set-theme", "Light", "sun", data.theme === "light" ? "selected" : "", 'data-theme="light"')}${btn("set-theme", "Dark", "moon", data.theme === "dark" ? "selected" : "", 'data-theme="dark"')}</div></div></div></section><section class="panel"><div class="panel-body stack"><div><h2>Your data & backups</h2><p class="hint">Records stay in this browser. Export a backup to keep a copy or move to another device.</p></div><div class="row">${btn("export", "Export my data", "download", "primary small")}${btn("import-data", "Import JSON", "upload", "small")}${btn("export-original", "Original backup", "shield", "small")}${btn("saved-backups", "Saved backups", "clock", "small")}</div><div class="sep"></div><h3>Share a preview</h3><p class="hint">Share your data as a key. Preview mode is read-only and never replaces saved records.</p><div class="row">${btn("share-key", "Create share key", "copy", "small")}${btn("load-preview", "Load a preview", "upload", "small")}</div></div></section><section class="panel"><div class="panel-body stack"><div><h2>Archive</h2><p class="hint">Removed orders and notes remain recoverable here.</p></div>${data.trash.length ? data.trash.map((item, i) => `<div class="resource-row"><div><b class="small">${esc(item.record.name || item.record.title || "Note")}</b><p class="hint">${esc(item.kind)} · ${esc(dateLabel(item.removedAt))}</p></div>${btn("unarchive", "Restore", "refresh", "small", `data-index="${i}"`)}</div>`).join("") : '<p class="hint">Your archive is empty.</p>'}</div></section></div><div class="stack"><section class="panel"><div class="panel-body stack"><div><h2>Publish product resources</h2><p class="hint">Local resource edits are shared by profiles on this device. Publish a reviewed copy to make them available to everyone.</p></div><div class="row">${btn("publish-lan", "Publish LAN Service", "upload", "small primary")}${btn("legacy-resources", "My original resources", "book", "small")}</div><p class="hint">Publishing uses the repository’s normal GitHub editor and commit process. Order records and personal notes are excluded.</p></div></section><section class="panel"><div class="panel-body stack"><h2>Profile</h2><form id="profileCategoryForm" class="stack">${select(
+        "assignedProduct",
+        "Assigned order category",
+        D.PRODUCTS.map((p) => ({ value: p.id, label: p.name })),
+        data.assignedProduct,
+      )}<p class="hint">Your category sets the default product for new orders and shows its specific tools. LAN Service includes eFlow tracking.</p><button class="small">Save category</button></form><div class="row"><span class="avatar">${esc((user || "G").slice(0, 2).toUpperCase())}</span><div><b>${esc(user || "Guest")}</b><p class="hint">${esc(productName(data.assignedProduct))}</p></div></div><div class="row">${btn("profiles", "Switch user", "user", "small")}${btn("logout", "Sign out", "", "ghost small")}</div></div></section><section class="panel"><div class="panel-body stack"><h2>Adding more products</h2><p class="hint">LAN Service, Standard and PABX are ready to use. More product workspaces can be added as your delivery toolkit grows.</p><a class="text-link" href="#board">Visit the Public Board ${icon("arrow")}</a></div></section></div></div>`
     );
   }
   function boardView() {
@@ -536,7 +563,7 @@
         "A workspace that keeps things together",
         "Product knowledge for the team. Order tracking for you.",
       ) +
-      `<div class="grid two"><section class="panel"><div class="panel-body stack"><h2>What lives where?</h2><p><b>Product categories</b> hold links, common texts, reference charts and checklist templates.</p><p><b>User</b> holds your open and finished orders, attachments and notes across all products.</p><p><b>Public Board</b> shows published announcements to every visitor.</p><p><b>Settings</b> includes themes, backups, shared previews and resource publication.</p></div></section><section class="panel"><div class="panel-body stack"><h2>Your existing data</h2><p class="hint">This site retains its original browser storage keys. Pavel’s old data is read automatically in the browser where it was saved. A raw backup is retained before the updated record is saved.</p><p class="hint">If data seems missing, open the same website address and browser you used before. Different browsers and website addresses have separate storage. Export JSON from the original browser to move records.</p><h3>Screenshot import</h3><p class="hint">PNG, JPEG, WebP and BMP images up to 12 MB are read on your device. English and German labels are supported. Review all detected fields before saving; unrecognized fields stay empty.</p><h3>Profiles and publishing</h3><p class="hint">Profiles are local to this device. The registration passport is a lightweight browser-side gate, not a secure account system. Publishing shared content requires repository access on GitHub.</p><a class="text-link" href="https://github.com/PaulK2/order-tracker-web" target="_blank" rel="noopener noreferrer">View project ${icon("arrow")}</a></div></section></div>`
+      `<div class="grid two"><section class="panel"><div class="panel-body stack"><h2>What lives where?</h2><p><b>Product categories</b> hold links, common texts, reference charts and checklist templates.</p><p><b>User</b> holds your open and finished orders, attachments and notes across all products.</p><p><b>Public Board</b> shows published announcements to every visitor.</p><p><b>Settings</b> includes themes, backups, shared previews and resource publication.</p></div></section><section class="panel"><div class="panel-body stack"><h2>Your existing data</h2><p class="hint">This site retains its original browser storage keys. Pavel’s old data is read automatically in the browser where it was saved. A raw backup is retained before the updated record is saved.</p><p class="hint">If data seems missing, open the same website address and browser you used before. Different browsers and website addresses have separate storage. Export JSON from the original browser to move records.</p><h3>Screenshot import</h3><p class="hint">PNG, JPEG, WebP and BMP images up to 12 MB are read on your device. English and German labels are supported. Each detected row is saved automatically. Missing fields stay empty. If nothing is detected, try a clearer screenshot. LAN Service profiles also have an eFlow tracker.</p><h3>Profiles and publishing</h3><p class="hint">Profiles are local to this device. The registration passport is a lightweight browser-side gate, not a secure account system. Publishing shared content requires repository access on GitHub.</p><a class="text-link" href="https://github.com/PaulK2/order-tracker-web" target="_blank" rel="noopener noreferrer">View project ${icon("arrow")}</a></div></section></div>`
     );
   }
   function closeModal() {
@@ -659,52 +686,60 @@
     }
     return true;
   }
-  function orderForm(id = "", scan = false) {
+  function orderForm(id = "") {
     if (!requireProfile()) return;
     const existing = id ? findOrder(id) : null;
     const order = existing || {
       name: "",
       customer: "",
-      product: scan ? "" : "lan",
+      product: data.assignedProduct,
       val310: "",
       bsId: "",
       val42: "",
       val23: "",
-      status: scan ? "" : "Open",
-      date: scan ? "" : today(),
+      status: "Open",
+      date: today(),
       category: "Default",
     };
-    const categories = workspace(order.product || "lan").data.categories;
-    let screenshot = null,
-      reading = false,
-      controller,
-      selectedPreview;
+    const categories = workspace(order.product).data.categories;
     showModal(
-      existing
-        ? "Edit order"
-        : scan
-          ? "Import an order screenshot"
-          : "Create an order",
-      scan
-        ? "Read the screenshot, review the details, then save to your workspace."
-        : "Keep the customer, product and delivery details together.",
-      `${!existing ? `<div class="dropzone" id="dropzone"><div>${icon("image")}</div><h3>Let a screenshot do the typing</h3><p>Drop an image here, paste it, or choose a file. PNG, JPG, WebP · up to 12 MB</p><label class="button small" for="screenshotFile">${icon("upload")} Choose screenshot</label><input id="screenshotFile" type="file" accept="image/png,image/jpeg,image/webp,image/bmp"><div id="scanStatus" aria-live="polite"></div></div><div style="height:22px"></div>` : ""}<div id="importSummary" class="import-summary" role="status"></div><div class="form-grid">${field("customer", "Customer name", order.customer, existing ? "" : "required")}${field("name", "Order name", order.name, "required")}${select("product", "Product type", [{ value: "", label: "Choose a product" }, ...D.PRODUCTS.map((p) => ({ value: p.id, label: p.name }))], order.product)}${field("val310", "310x number", order.val310, 'inputmode="numeric"')}${field("bsId", "BS-ID", order.bsId)}${field("status", "Status", order.status, 'list="orderStatuses"')}<datalist id="orderStatuses"><option>Open</option><option>In progress</option><option>Waiting</option><option>On hold</option><option>Ready for delivery</option></datalist>${field("date", "Order date", order.date, 'type="date"')}${select(
-        "category",
-        "Checklist template",
-        categories.map((c) => c.name),
-        order.category,
-      )}<div class="section-label">Additional references</div>${field("val42", "42x number", order.val42)}${field("val23", "23x number", order.val23)}</div><div id="ocrReview" hidden style="margin-top:20px"><label class="row small"><input type="checkbox" name="reviewed"> I have reviewed and corrected the detected details.</label><details style="margin-top:16px"><summary>Recognized text</summary><textarea id="ocrText" aria-label="Recognized screenshot text" readonly></textarea></details></div>`,
+      existing ? "Edit order" : "Create an order",
+      "Keep the details you have. Missing information can be added later.",
+      (!existing
+        ? '<div class="banner"><span>Have a screenshot with one or more rows?</span>' +
+          btn("import-order", "Import screenshots", "image", "small") +
+          "</div>"
+        : "") +
+        '<div class="form-grid">' +
+        field("customer", "Customer name", order.customer) +
+        field("name", "Order name", order.name) +
+        select(
+          "product",
+          "Product type",
+          D.PRODUCTS.map((p) => ({ value: p.id, label: p.name })),
+          order.product,
+        ) +
+        field("val310", "310x number", order.val310, 'inputmode="numeric"') +
+        field("bsId", "BS-ID", order.bsId) +
+        field("status", "Status", order.status) +
+        field("date", "Order date", order.date, 'type="date"') +
+        select(
+          "category",
+          "Checklist template",
+          categories.map((c) => c.name),
+          order.category,
+        ) +
+        '<div class="section-label">Additional references</div>' +
+        field("val42", "42x number", order.val42) +
+        field("val23", "23x number", order.val23) +
+        "</div>",
       btn("close-modal", "Cancel") +
-        `<button class="primary" id="saveOrder">${icon("check")} ${existing ? "Save changes" : "Create order"}</button>`,
-      async (values) => {
-        if (reading)
-          throw new Error("Wait for the screenshot to finish reading.");
-        if (!D.PRODUCTS.some((p) => p.id === values.get("product")))
-          throw new Error("Select the product for this order.");
+        '<button class="primary">Save order</button>',
+      (values) => {
         const draft = Object.fromEntries(
           [
-            "name",
             "customer",
+            "name",
             "product",
             "val310",
             "bsId",
@@ -713,40 +748,30 @@
             "category",
             "val42",
             "val23",
-          ].map((k) => [k, String(values.get(k) || "").trim()]),
+          ].map((key) => [key, String(values.get(key) || "").trim()]),
         );
-        if (!draft.name) throw new Error("Enter an order name.");
-        if (screenshot && !values.get("reviewed"))
-          throw new Error("Review the detected fields before saving.");
-        if (draft.val310 && !/^310\d+$/.test(draft.val310))
-          throw new Error(
-            "The 310x number must start with 310 and contain only digits.",
-          );
+        if (!D.productId(draft.product)) throw Error("Choose a product.");
         if (
-          !existing &&
-          draft.val310 &&
-          data.open.some(
-            (o) => o.val310 === draft.val310 && o.product === draft.product,
-          )
+          ![
+            draft.customer,
+            draft.name,
+            draft.val310,
+            draft.bsId,
+            draft.date,
+            draft.val42,
+            draft.val23,
+          ].some(Boolean)
         )
-          throw new Error(
-            "An open order already uses this 310x number for this product.",
-          );
-        const attachment = screenshot
-          ? await putImage(screenshot, screenshot.name)
-          : null;
+          throw Error("Enter at least one order detail.");
         const saved = persist((next) => {
           if (existing) {
             const record = [...next.open, ...next.finished].find(
-              (o) => String(o.id) === String(existing.id),
+              (o) => String(o.id) === String(id),
             );
-            if (!record)
-              throw new Error(
-                "This order changed in another tab. Reopen it before editing.",
-              );
+            if (!record) throw Error("This order is no longer available.");
             Object.assign(record, draft);
           } else {
-            const cat = workspace(draft.product).data.categories.find(
+            const template = workspace(draft.product).data.categories.find(
               (c) => c.name === draft.category,
             );
             next.open.push({
@@ -754,15 +779,17 @@
               id: D.uid(),
               createdAt: new Date().toISOString(),
               status: draft.status || "Open",
-              tasks: (cat?.tasks || []).map((name) => ({ name, done: false })),
+              tasks: (template?.tasks || []).map((name) => ({
+                name,
+                done: false,
+              })),
               notes: [],
-              files: attachment ? [attachment] : [],
+              files: [],
             });
           }
         });
         if (saved) {
           closeModal();
-          location.hash = "user/open";
           render();
           notify(existing ? "Order updated." : "Order created.");
         }
@@ -770,88 +797,406 @@
       true,
     );
     const form = $("modalForm");
-    form.elements.product.required = true;
     form.elements.product.addEventListener("change", () => {
-      const options = workspace(form.elements.product.value || "lan").data
-        .categories;
-      form.elements.category.innerHTML = options
-        .map((c) => `<option>${esc(c.name)}</option>`)
+      form.elements.category.innerHTML = workspace(form.elements.product.value)
+        .data.categories.map((c) => "<option>" + esc(c.name) + "</option>")
         .join("");
     });
-    if (existing) return;
-    async function read(file) {
-      if (reading) return;
-      reading = true;
-      screenshot = null;
+  }
+  function importScreenshots(kind = "order") {
+    if (
+      !requireProfile() ||
+      (kind === "eflow" && data.assignedProduct !== "lan")
+    )
+      return;
+    const targetUser = user,
       controller = new AbortController();
-      $("saveOrder").disabled = true;
-      try {
-        const result = await O.recognize(
-          file,
-          (message, progress) => {
-            if (controller.signal.aborted || !$("scanStatus")) return;
-            $("scanStatus").innerHTML =
-              `<div class="scan-status">${esc(message)} <b>${Math.round(progress * 100)}%</b><div class="scan-progress"><span style="width:${Math.round(progress * 100)}%"></span></div></div>`;
-          },
-          controller.signal,
-        );
-        if (!modal.open || controller.signal.aborted) return;
-        screenshot = file;
-        for (const [key, value] of Object.entries(result.fields)) {
-          if (form.elements[key]) form.elements[key].value = value;
-          const label = form.querySelector(`[data-field="${key}"]`);
-          label?.classList.toggle("missing-field", !value);
+    let reading = false;
+    const noun = kind === "eflow" ? "eFlow entries" : "orders";
+    showModal(
+      "Import " + noun,
+      "Each detected row is saved automatically. Missing fields stay empty; no extra information or approval is required.",
+      '<div class="dropzone" id="dropzone"><div>' +
+        icon("image") +
+        "</div><h3>One screenshot. Every row.</h3>" +
+        "<p>Drop or paste screenshots here, or choose files. PNG, JPG, WebP, BMP · up to 12 MB each.</p>" +
+        '<label class="button primary small" for="screenshotFile">' +
+        icon("upload") +
+        " Choose screenshots</label>" +
+        '<input id="screenshotFile" type="file" multiple accept="image/png,image/jpeg,image/webp,image/bmp">' +
+        '<div id="scanStatus" aria-live="polite"></div></div>' +
+        '<p class="hint import-hint">' +
+        (kind === "order"
+          ? "Your " +
+            esc(productName(data.assignedProduct)) +
+            " category is used when the product is not detected."
+          : "Recognizes 42x number, date from, Bruttobetrag, BS-ID and client name. Matching active LAN orders are linked automatically.") +
+        "</p>" +
+        '<div id="importResults" class="stack" aria-live="polite"></div>',
+      btn("close-modal", "Done"),
+      null,
+      true,
+    );
+    const status = $("scanStatus"),
+      results = $("importResults"),
+      input = $("screenshotFile"),
+      drop = $("dropzone");
+    async function read(files) {
+      if (reading || controller.signal.aborted) return;
+      reading = true;
+      input.disabled = true;
+      for (const file of files) {
+        if (controller.signal.aborted || user !== targetUser) break;
+        try {
+          status.textContent =
+            "Reading " + (file.name || "pasted screenshot") + "…";
+          const result = await O.recognize(
+            file,
+            (message, progress) => {
+              if (controller.signal.aborted) return;
+              status.textContent =
+                message +
+                " " +
+                Math.round(Math.min(1, Math.max(0, progress)) * 100) +
+                "%";
+            },
+            controller.signal,
+            kind,
+          );
+          if (controller.signal.aborted || user !== targetUser) break;
+          const rows = (result.rows || []).filter(
+            (r) =>
+              r.fields &&
+              Object.values(r.fields).some((v) => String(v ?? "").trim()),
+          );
+          if (!rows.length)
+            throw Error(
+              "No recognizable fields were found. Try a clearer screenshot or enter the details manually.",
+            );
+          const attachment = await putImage(file, file.name || "Screenshot");
+          if (controller.signal.aborted || user !== targetUser) break;
+          let imported;
+          const saved = persist((next) => {
+            if (kind === "eflow" && next.assignedProduct !== "lan")
+              throw Error(
+                "This profile's category changed. Reopen the importer.",
+              );
+            imported = T.importRows(next, kind, rows, {
+              attachment,
+              workspace: (p) => workspace(p).data,
+            });
+          });
+          if (!saved)
+            throw Error(
+              "The entries could not be saved. Your existing records are unchanged.",
+            );
+          render();
+          const item = document.createElement("div");
+          item.className = "import-result";
+          item.innerHTML =
+            "<div><b>" +
+            imported.count +
+            " " +
+            noun +
+            ' created</b><p class="hint">' +
+            esc(file.name || "Screenshot") +
+            " · Saved with the source image</p></div>" +
+            btn(
+              "undo-import",
+              "Undo import",
+              "refresh",
+              "small ghost",
+              'data-batch="' + esc(imported.batchId) + '"',
+            );
+          results.prepend(item);
+          status.textContent =
+            imported.count +
+            " " +
+            noun +
+            " saved. You can choose another screenshot.";
+        } catch (error) {
+          if (controller.signal.aborted) break;
+          const item = document.createElement("p");
+          item.className = "dialog-error";
+          item.textContent = (file.name || "Screenshot") + ": " + error.message;
+          results.prepend(item);
+          status.textContent = "Ready for another screenshot.";
         }
-        form.elements.product.dispatchEvent(new Event("change"));
-        form.elements.reviewed.checked = false;
-        form.elements.reviewed.required = true;
-        $("ocrText").value = result.rawText;
-        $("ocrReview").hidden = false;
-        $("importSummary").textContent =
-          `${7 - result.missing.length} of 7 fields detected. ${result.missing.length ? "Highlighted fields need your input. " : " "}Please verify every field before saving.`;
-        $("scanStatus").innerHTML =
-          `<div class="scan-status success-text">${icon("checkCircle")} Screenshot read. Review the details below.</div>`;
-      } catch (e) {
-        if (controller.signal.aborted) return;
-        $("scanStatus").innerHTML =
-          `<div class="scan-status">${esc(e.message)} You can still enter the details manually.</div>`;
-        $("ocrReview").hidden = true;
-        form.elements.reviewed.required = false;
-      } finally {
-        reading = false;
-        if ($("saveOrder")) $("saveOrder").disabled = false;
       }
+      reading = false;
+      input.disabled = false;
+      input.value = "";
     }
-    $("screenshotFile").addEventListener("change", (e) => {
-      const file = e.target.files[0];
-      if (file) read(file);
-    });
-    const zone = $("dropzone");
-    zone.addEventListener("dragover", (e) => {
+    input.addEventListener("change", () => read([...input.files]));
+    for (const event of ["dragenter", "dragover"])
+      drop.addEventListener(event, (e) => {
+        e.preventDefault();
+        drop.classList.add("dragover");
+      });
+    drop.addEventListener("dragleave", () => drop.classList.remove("dragover"));
+    drop.addEventListener("drop", (e) => {
       e.preventDefault();
-      zone.classList.add("drag");
-    });
-    zone.addEventListener("dragleave", () => zone.classList.remove("drag"));
-    zone.addEventListener("drop", (e) => {
-      e.preventDefault();
-      zone.classList.remove("drag");
-      if (e.dataTransfer.files[0]) read(e.dataTransfer.files[0]);
+      drop.classList.remove("dragover");
+      read([...e.dataTransfer.files]);
     });
     const paste = (e) => {
-      const image = [...(e.clipboardData?.items || [])].find((i) =>
-        i.type.startsWith("image/"),
-      );
-      if (image) {
+      const files = [...(e.clipboardData?.items || [])]
+        .filter((item) => item.type.startsWith("image/"))
+        .map((item) => item.getAsFile())
+        .filter(Boolean);
+      if (files.length) {
         e.preventDefault();
-        read(image.getAsFile());
+        read(files);
       }
     };
-    modal.addEventListener("paste", paste);
+    document.addEventListener("paste", paste);
     modalCleanup = () => {
-      controller?.abort();
-      modal.removeEventListener("paste", paste);
-      if (selectedPreview) URL.revokeObjectURL(selectedPreview);
+      controller.abort();
+      document.removeEventListener("paste", paste);
     };
+  }
+  const amountLabel = (value) =>
+    value !== "" && Number.isFinite(Number(value))
+      ? new Intl.NumberFormat("de-AT", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }).format(Number(value))
+      : "—";
+  const flowModel = () => T.linkEflows(D.copy(data));
+  function eflowView() {
+    if (data.assignedProduct !== "lan")
+      return '<section class="panel"><div class="panel-body"><h2>Category workspace</h2><p>eFlow tracking is available to LAN Service profiles.</p><a class="text-link" href="#settings">Manage your category</a></div></section>';
+    return (
+      '<div class="section-header"><div><div class="eyebrow">LAN SERVICE</div><h2>eFlow tracking</h2><p>Oldest date first. Entries without a date appear last.</p></div></div>' +
+      '<div class="toolbar"><div class="search-field">' +
+      icon("search") +
+      '<input id="eflowSearch" aria-label="Search eFlows" placeholder="Search client, 42x or BS-ID…" value="' +
+      esc(eflowFilter.q) +
+      '"></div>' +
+      '<select id="eflowState" aria-label="eFlow status"><option value="open"' +
+      (eflowFilter.state === "open" ? " selected" : "") +
+      '>Active eFlows</option><option value="completed"' +
+      (eflowFilter.state === "completed" ? " selected" : "") +
+      '>Completed eFlows</option><option value="all"' +
+      (eflowFilter.state === "all" ? " selected" : "") +
+      '>All eFlows</option></select></div><div id="eflowList">' +
+      eflowList() +
+      "</div>"
+    );
+  }
+  function eflowList() {
+    const model = flowModel();
+    const flows = T.sortEflows(model.eflows).filter(
+      (e) =>
+        (eflowFilter.state === "all" ||
+          (eflowFilter.state === "completed" ? e.completed : !e.completed)) &&
+        (!eflowFilter.q ||
+          [e.val42, e.bsId, e.customer].some((v) =>
+            v.toLowerCase().includes(eflowFilter.q.toLowerCase()),
+          )),
+    );
+    if (!flows.length)
+      return (
+        '<div class="panel">' +
+        empty(
+          "orders",
+          "No eFlows in this view",
+          "Import a screenshot with one or more rows, or add an entry yourself.",
+          btn(
+            "import-eflow",
+            "Import eFlow screenshots",
+            "image",
+            "small primary",
+          ),
+        ) +
+        "</div>"
+      );
+    return (
+      '<div class="panel table-wrap"><table class="order-table eflow-table"><thead><tr><th>42x / CLIENT</th><th>DATE FROM</th><th>BRUTTOBETRAG</th><th>BS-ID</th><th>LINKED ORDER</th><th>ACTIONS</th></tr></thead><tbody>' +
+      flows
+        .map((e) => {
+          const order = [...model.open, ...model.finished].find(
+            (o) => String(o.id) === e.linkedOrderId,
+          );
+          const attrs = 'data-id="' + esc(e.id) + '"';
+          return (
+            '<tr data-eflow-id="' +
+            esc(e.id) +
+            '"><td><b class="mono">' +
+            esc(e.val42 || "No 42x number") +
+            '</b><div class="secondary">' +
+            esc(e.customer || "Client not detected") +
+            "</div>" +
+            (e.completed ? '<span class="badge green">Completed</span>' : "") +
+            "</td><td>" +
+            esc(dateLabel(e.dateFrom)) +
+            '</td><td class="mono">' +
+            esc(amountLabel(e.grossAmount)) +
+            '</td><td class="mono">' +
+            esc(e.bsId || "—") +
+            "</td><td>" +
+            (order
+              ? btn(
+                  "order-detail",
+                  esc(order.name || order.val310 || "Open order"),
+                  "link",
+                  "ghost small eflow-order-link",
+                  'data-id="' + esc(order.id) + '"',
+                ) +
+                '<div class="hint">Matched by ' +
+                esc(e.linkReason || "saved link") +
+                "</div>"
+              : '<span class="hint">No matching active order</span>') +
+            '</td><td><div class="row eflow-actions">' +
+            btn(
+              e.completed ? "reopen-eflow" : "complete-eflow",
+              e.completed ? "Reopen" : "Complete",
+              e.completed ? "refresh" : "check",
+              "small",
+              attrs,
+            ) +
+            btn(
+              "edit-eflow",
+              "",
+              "edit",
+              "ghost icon-button",
+              attrs + ' aria-label="Edit eFlow"',
+            ) +
+            "</div></td></tr>"
+          );
+        })
+        .join("") +
+      '</tbody></table></div><p class="hint import-hint">Completing an eFlow also finishes its linked order. Edit an entry to change a link or inspect its screenshot.</p>'
+    );
+  }
+  function eflowForm(id = "") {
+    if (!requireProfile() || data.assignedProduct !== "lan") return;
+    const model = flowModel(),
+      existing = model.eflows.find((e) => String(e.id) === String(id));
+    const flow = existing || {
+      val42: "",
+      customer: "",
+      dateFrom: "",
+      grossAmount: "",
+      bsId: "",
+      files: [],
+    };
+    const choices = [
+      { value: "auto", label: "Match automatically" },
+      { value: "none", label: "Keep unlinked" },
+      ...[
+        ...data.open,
+        ...data.finished.filter((o) => String(o.id) === flow.linkedOrderId),
+      ]
+        .filter((o) => o.product === "lan")
+        .map((o) => ({
+          value: String(o.id),
+          label:
+            (o.name || o.val310 || "Untitled order") +
+            (o.customer ? " · " + o.customer : ""),
+        })),
+    ];
+    showModal(
+      existing ? "Edit eFlow" : "Add eFlow",
+      "Complete an eFlow to finish its linked order. Missing fields can stay empty.",
+      '<div class="form-grid">' +
+        field("val42", "42x number", flow.val42) +
+        field("customer", "Client name", flow.customer) +
+        field("dateFrom", "Date from", flow.dateFrom, 'type="date"') +
+        field(
+          "grossAmount",
+          "Bruttobetrag",
+          flow.grossAmount,
+          'inputmode="decimal" placeholder="1.234,56"',
+        ) +
+        field("bsId", "BS-ID", flow.bsId) +
+        select(
+          "linkedOrder",
+          "Linked LAN order",
+          choices,
+          flow.linkMode === "manual"
+            ? flow.linkedOrderId
+            : flow.linkMode || "auto",
+        ) +
+        "</div>" +
+        (flow.files.length
+          ? '<div class="row import-hint">' +
+            flow.files
+              .map((f, i) =>
+                btn(
+                  "view-image",
+                  esc(f.name),
+                  "image",
+                  "small",
+                  'data-id="' + esc(flow.id) + '" data-index="' + i + '"',
+                ),
+              )
+              .join("") +
+            "</div>"
+          : "") +
+        (flow.ocrText
+          ? '<details class="import-hint"><summary>Recognized text</summary><pre class="pre">' +
+            esc(flow.ocrText) +
+            "</pre></details>"
+          : ""),
+      (existing
+        ? btn(
+            "archive-eflow",
+            "Archive",
+            "trash",
+            "ghost danger small",
+            'data-id="' + esc(id) + '"',
+          )
+        : "") +
+        btn("close-modal", "Cancel") +
+        '<button class="primary">Save eFlow</button>',
+      (values) => {
+        const draft = Object.fromEntries(
+          ["val42", "customer", "dateFrom", "grossAmount", "bsId"].map((k) => [
+            k,
+            String(values.get(k) || "").trim(),
+          ]),
+        );
+        if (!Object.values(draft).some(Boolean))
+          throw Error("Enter at least one eFlow detail.");
+        if (draft.grossAmount) {
+          draft.grossAmount = O.normalizeAmount(draft.grossAmount);
+          if (!draft.grossAmount)
+            throw Error("Enter a valid Bruttobetrag, for example 1.234,56.");
+        }
+        const link = values.get("linkedOrder");
+        draft.linkMode = link === "auto" || link === "none" ? link : "manual";
+        draft.linkedOrderId =
+          draft.linkMode === "manual"
+            ? link
+            : draft.linkMode === "auto"
+              ? existing?.linkedOrderId || null
+              : null;
+        if (
+          persist((next) => {
+            if (existing) {
+              const target = next.eflows.find(
+                (e) => String(e.id) === String(id),
+              );
+              if (!target) throw Error("This eFlow is no longer available.");
+              Object.assign(target, draft);
+            } else
+              next.eflows.push({
+                ...draft,
+                id: D.uid(),
+                createdAt: new Date().toISOString(),
+                completed: false,
+                files: [],
+              });
+          })
+        ) {
+          closeModal();
+          render();
+          notify("eFlow saved.");
+        }
+      },
+      true,
+    );
   }
   function orderDetail(id) {
     const o = findOrder(id);
@@ -1115,6 +1460,13 @@
         if (i < 0) throw Error("The order was already moved.");
         const [order] = next[from].splice(i, 1);
         if (restore) {
+          for (const flow of next.eflows.filter(
+            (e) => String(e.linkedOrderId) === String(id),
+          )) {
+            flow.completed = false;
+            delete flow.completedAt;
+          }
+          delete order.completedByEflowId;
           order.status = order.previousStatus || "Open";
           delete order.finishedAt;
         } else {
@@ -1166,8 +1518,9 @@
     const orders = [
       ...payload.open,
       ...payload.finished,
+      ...payload.eflows,
       ...payload.trash
-        .filter((x) => x.kind === "open" || x.kind === "finished")
+        .filter((x) => ["open", "finished", "eflows"].includes(x.kind))
         .map((x) => x.record),
     ];
     const ids = new Set(
@@ -1216,6 +1569,8 @@
             ![
               "open",
               "finished",
+              "eflows",
+              "assignedProduct",
               "links",
               "kb_texts",
               "kb_tabs",
@@ -1249,8 +1604,9 @@
         const orders = [
           ...normalized.open,
           ...normalized.finished,
+          ...normalized.eflows,
           ...normalized.trash
-            .filter((x) => x.kind === "open" || x.kind === "finished")
+            .filter((x) => ["open", "finished", "eflows"].includes(x.kind))
             .map((x) => x.record),
         ];
         orders.forEach((o) =>
@@ -1381,6 +1737,32 @@
     );
   }
   function bindPage(page, sub) {
+    const profileCategory = $("profileCategoryForm");
+    profileCategory?.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const product = D.productId(
+        new FormData(profileCategory).get("assignedProduct"),
+      );
+      if (
+        product &&
+        persist((next) => {
+          next.assignedProduct = product;
+        })
+      ) {
+        render();
+        notify("Your order category was saved.");
+      }
+    });
+    const flowSearch = $("eflowSearch"),
+      flowState = $("eflowState");
+    flowSearch?.addEventListener("input", () => {
+      eflowFilter.q = flowSearch.value;
+      $("eflowList").innerHTML = eflowList();
+    });
+    flowState?.addEventListener("change", () => {
+      eflowFilter.state = flowState.value;
+      $("eflowList").innerHTML = eflowList();
+    });
     const userForm = $("selectUserForm");
     if (userForm)
       userForm.addEventListener("submit", (e) => {
@@ -1409,6 +1791,7 @@
           const name = store.create(
             values.get("username"),
             values.get("passport"),
+            values.get("assignedProduct"),
           );
           store.select(name);
           user = name;
@@ -1484,7 +1867,68 @@
       $("orderSearch")?.focus();
     },
     "new-order": () => orderForm(),
-    "import-order": () => orderForm("", true),
+    "import-order": () => importScreenshots("order"),
+    "import-eflow": () => importScreenshots("eflow"),
+    "new-eflow": () => eflowForm(),
+    "edit-eflow": (el) => eflowForm(el.dataset.id),
+    "complete-eflow": (el) => {
+      if (persist((next) => T.completeEflow(next, el.dataset.id))) {
+        render();
+        notify("eFlow completed. Any linked active order is now finished.");
+      }
+    },
+    "reopen-eflow": (el) => {
+      if (persist((next) => T.reopenEflow(next, el.dataset.id))) {
+        render();
+        notify("eFlow reopened.");
+      }
+    },
+    "archive-eflow": (el) => {
+      if (
+        persist((next) => {
+          const i = next.eflows.findIndex(
+            (e) => String(e.id) === el.dataset.id,
+          );
+          if (i < 0) throw Error("eFlow not found.");
+          next.trash.push({
+            kind: "eflows",
+            record: next.eflows.splice(i, 1)[0],
+            removedAt: new Date().toISOString(),
+          });
+        })
+      ) {
+        closeModal();
+        render();
+        notify("eFlow archived. Restore it from Settings.");
+      }
+    },
+    "undo-import": (el) => {
+      if (
+        persist((next) => {
+          const batch = el.dataset.batch;
+          for (const flow of next.eflows.filter(
+            (e) => e.importBatchId === batch,
+          ))
+            T.reopenEflow(next, flow.id);
+          for (const kind of ["open", "finished", "eflows"]) {
+            for (const record of next[kind].filter(
+              (r) => r.importBatchId === batch,
+            ))
+              next.trash.push({
+                kind,
+                record,
+                removedAt: new Date().toISOString(),
+              });
+            next[kind] = next[kind].filter((r) => r.importBatchId !== batch);
+          }
+        })
+      ) {
+        el.disabled = true;
+        el.textContent = "Import undone";
+        render();
+        notify("Imported entries moved to the recoverable archive.");
+      }
+    },
     "edit-order": (el) => orderForm(el.dataset.id),
     "order-detail": (el) => orderDetail(el.dataset.id),
     "finish-order": (el) => finishOrder(el.dataset.id),
@@ -1605,7 +2049,10 @@
       );
     },
     "view-image": async (el) => {
-      const f = findOrder(el.dataset.id)?.files[Number(el.dataset.index)];
+      const record =
+        findOrder(el.dataset.id) ||
+        data.eflows.find((e) => String(e.id) === el.dataset.id);
+      const f = record?.files[Number(el.dataset.index)];
       if (!f) return;
       const image = await getImage(f.attachmentId);
       if (!image)
@@ -1673,7 +2120,7 @@
           const item = next.trash[Number(el.dataset.index)];
           if (
             !item ||
-            !["open", "finished", "personalNotes"].includes(item.kind)
+            !["open", "finished", "personalNotes", "eflows"].includes(item.kind)
           )
             throw Error("This archive item cannot be restored.");
           next[item.kind].push(item.record);

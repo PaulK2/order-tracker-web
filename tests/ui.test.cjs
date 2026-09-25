@@ -89,7 +89,13 @@ async function setup(seed = {}, hash = "") {
       key,
       typeof value === "string" ? value : JSON.stringify(value),
     );
-  for (const file of ["data.js", "ocr.js", "app.js"])
+  for (const file of [
+    "data.js",
+    "tracking.js",
+    "ocr-parser.js",
+    "ocr.js",
+    "app.js",
+  ])
     w.eval(fs.readFileSync(path.join(root, file), "utf8"));
   await tick();
   return {
@@ -173,30 +179,59 @@ test("Pavel migrations preserve content and move resources out of personal track
   assert.match(a.doc.body.textContent, /Completed history/);
 });
 test("published LAN resources load on a fresh device, retain SAP clipboard columns and named colors", async (t) => {
-  const a = await setup({
-    "ot:users": ["New User"],
-    "ot:currentUser": "New User",
-    "ot:New User": D.emptyData(),
-  }, "#products/lan/links");
+  const a = await setup(
+    {
+      "ot:users": ["New User"],
+      "ot:currentUser": "New User",
+      "ot:New User": D.emptyData(),
+    },
+    "#products/lan/links",
+  );
   t.after(() => a.w.close());
-  assert.equal(a.doc.querySelectorAll('#main [data-action="copy-link"]').length, 10);
+  assert.equal(
+    a.doc.querySelectorAll('#main [data-action="copy-link"]').length,
+    10,
+  );
   await a.route("products/lan/knowledge");
-  assert.equal(a.doc.querySelectorAll('#main [data-action="copy-text"]').length, 5);
+  assert.equal(
+    a.doc.querySelectorAll('#main [data-action="copy-text"]').length,
+    5,
+  );
   assert.equal(a.doc.querySelector("#resourceTab").options.length, 5);
   await a.click('[data-action="copy-row"][data-index="9"]');
   assert.deepEqual(a.w.copied.split("\t"), [
-    "F", "", "", "xxx_xxx", "1", "st", "", "", "", "", "", "D040204 ", "A1 Tele",
+    "F",
+    "",
+    "",
+    "xxx_xxx",
+    "1",
+    "st",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "D040204 ",
+    "A1 Tele",
   ]);
   a.doc.querySelector("#resourceTab").value = "2";
-  a.doc.querySelector("#resourceTab").dispatchEvent(new a.w.Event("change", { bubbles: true }));
+  a.doc
+    .querySelector("#resourceTab")
+    .dispatchEvent(new a.w.Event("change", { bubbles: true }));
   await tick();
   await a.click('[data-action="edit-tab"]');
-  assert.equal(a.doc.querySelector('#modalForm input[type="color"]').value, "#008000");
+  assert.equal(
+    a.doc.querySelector('#modalForm input[type="color"]').value,
+    "#008000",
+  );
   a.doc.querySelector("#modal").close();
   await a.route("products/lan/templates");
   assert.equal(a.doc.querySelectorAll("#main .task-row").length, 23);
   await a.click('[data-action="edit-template"][data-index="1"]');
-  assert.equal(a.doc.querySelector('#modalForm input[type="color"]').value, "#ffa500");
+  assert.equal(
+    a.doc.querySelector('#modalForm input[type="color"]').value,
+    "#ffa500",
+  );
 });
 test("a newly registered Pavel uses published resources without losing personal profile data", async (t) => {
   const a = await setup({}, "#users");
@@ -423,4 +458,197 @@ test("JSON imports retain an accessible exact backup and do not replace shared r
   assert.equal(a.w.localStorage.getItem(keys[0]), before);
   await a.click('[data-action="saved-backups"]');
   assert.ok(a.doc.querySelector('[data-action="download-backup"]'));
+});
+
+async function uploadScreenshot(a, text, kind = "order") {
+  a.w.CDCOCR.recognize = async () => ({
+    rows: a.w.CDCOCR.parseRows(text, kind),
+    rawText: text,
+    confidence: 95,
+  });
+  await a.click(
+    kind === "eflow"
+      ? '[data-action="import-eflow"]'
+      : '[data-action="import-order"]',
+  );
+  const file = new a.w.File(["test image"], "rows.png", { type: "image/png" });
+  const input = a.doc.querySelector("#screenshotFile");
+  Object.defineProperty(input, "files", { value: [file] });
+  input.dispatchEvent(new a.w.Event("change", { bubbles: true }));
+  for (let i = 0; i < 100 && input.disabled; i++) await tick();
+  assert.equal(input.disabled, false, "Import should finish");
+}
+test("OCR creates every partial row immediately, attaches one shared image and supports undo", async (t) => {
+  const a = await setup(pavelSeed(), "#user/open");
+  t.after(() => a.w.close());
+  await uploadScreenshot(
+    a,
+    "Customer: Alpha\n310x: 3101111111\n\n310x: 3102222222",
+  );
+  const created = a.saved("Pavel").open.filter((o) => o.importBatchId);
+  assert.equal(created.length, 2);
+  assert.equal(created[1].name, "");
+  assert.equal(created[1].customer, "");
+  assert.equal(
+    created[0].files[0].attachmentId,
+    created[1].files[0].attachmentId,
+  );
+  assert.equal(a.doc.querySelector('[name="reviewed"]'), null);
+  assert.match(
+    a.doc.querySelector("#importResults").textContent,
+    /2 orders created/,
+  );
+  await a.click('[data-action="undo-import"]');
+  assert.equal(a.saved("Pavel").open.length, 1);
+  assert.equal(a.saved("Pavel").trash.length, 2);
+});
+test("screenshots containing no recognizable information create nothing", async (t) => {
+  const a = await setup(pavelSeed(), "#user/open");
+  t.after(() => a.w.close());
+  const before = a.w.localStorage.getItem("ot:Pavel");
+  await uploadScreenshot(a, "An ordinary photo of a tree");
+  assert.equal(a.w.localStorage.getItem("ot:Pavel"), before);
+  assert.match(
+    a.doc.querySelector("#importResults").textContent,
+    /No recognizable fields/,
+  );
+});
+test("eFlow screenshot import sorts rows, links existing orders and completes/restores them", async (t) => {
+  const a = await setup(pavelSeed(), "#user/eflow");
+  t.after(() => a.w.close());
+  await uploadScreenshot(
+    a,
+    "42x | Date from | Bruttobetrag | BS-ID | Client name\n4200100 | 23.09.2026 | 1.234,56 | BS-1 | Alpha\n4200200 | 01.09.2026 | 100,00 | BS-2 | Beta",
+    "eflow",
+  );
+  let flows = a.saved("Pavel").eflows;
+  assert.equal(flows.length, 2);
+  assert.equal(flows[0].linkedOrderId, "100");
+  a.doc.querySelector("#modal").close();
+  const displayed = [...a.doc.querySelectorAll("[data-eflow-id]")].map(
+    (el) => el.dataset.eflowId,
+  );
+  assert.deepEqual(displayed, [flows[1].id, flows[0].id]);
+  await a.click(
+    '[data-action="complete-eflow"][data-id="' + flows[0].id + '"]',
+  );
+  assert.equal(a.saved("Pavel").open.length, 0);
+  const finished = a.saved("Pavel").finished.find((o) => o.id === 100);
+  assert.equal(finished.notes[0].text, "Preserved update");
+  assert.equal(finished.tasks[0].done, true);
+  const state = a.doc.querySelector("#eflowState");
+  state.value = "completed";
+  state.dispatchEvent(new a.w.Event("change", { bubbles: true }));
+  await a.click('[data-action="reopen-eflow"][data-id="' + flows[0].id + '"]');
+  assert.equal(a.saved("Pavel").open[0].id, 100);
+  assert.equal(a.saved("Pavel").eflows[0].completed, false);
+});
+test("assigned categories drive defaults and tools without discarding eFlows on a change", async (t) => {
+  const a = await setup(pavelSeed(), "#settings");
+  t.after(() => a.w.close());
+  a.doc.querySelector("#profileCategoryForm").elements.assignedProduct.value =
+    "pabx";
+  await a.submit("#profileCategoryForm");
+  assert.equal(a.saved("Pavel").assignedProduct, "pabx");
+  await a.route("user/open");
+  assert.equal(a.doc.querySelector('a[href="#user/eflow"]'), null);
+  await uploadScreenshot(a, "Customer: PABX Customer");
+  assert.equal(a.saved("Pavel").open.at(-1).product, "pabx");
+  a.doc.querySelector("#modal").close();
+  await a.route("settings");
+  a.doc.querySelector("#profileCategoryForm").elements.assignedProduct.value =
+    "lan";
+  await a.submit("#profileCategoryForm");
+  await a.route("user/open");
+  assert.ok(a.doc.querySelector('a[href="#user/eflow"]'));
+});
+test("closing the importer before OCR finishes never saves an entry", async (t) => {
+  const a = await setup(pavelSeed(), "#user/open");
+  t.after(() => a.w.close());
+  let resolve;
+  a.w.CDCOCR.recognize = () => new Promise((r) => (resolve = r));
+  await a.click('[data-action="import-order"]');
+  const input = a.doc.querySelector("#screenshotFile");
+  Object.defineProperty(input, "files", {
+    value: [new a.w.File(["x"], "test.png", { type: "image/png" })],
+  });
+  input.dispatchEvent(new a.w.Event("change", { bubbles: true }));
+  a.doc.querySelector("#modal").close();
+  resolve({ rows: a.w.CDCOCR.parseOrderRows("Customer: Cancelled") });
+  await tick();
+  assert.equal(a.saved("Pavel").open.length, 1);
+});
+test("a new profile keeps its selected product category", async (t) => {
+  const a = await setup({}, "#users");
+  t.after(() => a.w.close());
+  const f = a.doc.querySelector("#createUserForm");
+  f.elements.username.value = "Standard User";
+  f.elements.passport.value = "CDC2026001";
+  f.elements.assignedProduct.value = "standard";
+  await a.submit("#createUserForm");
+  assert.equal(a.saved("Standard User").assignedProduct, "standard");
+  await a.click('[data-action="new-order"]');
+  assert.equal(
+    a.doc.querySelector("#modalForm").elements.product.value,
+    "standard",
+  );
+});
+
+test("backup import retains eFlow links and remaps images shared with orders and archived entries", async (t) => {
+  const a = await setup(pavelSeed(), "#settings");
+  t.after(() => a.w.close());
+  const normalFetch = a.w.fetch;
+  a.w.fetch = async (url) =>
+    String(url).startsWith("data:")
+      ? { blob: async () => new Blob(["x"], { type: "image/png" }) }
+      : normalFetch(url);
+  await a.click('[data-action="import-data"]');
+  const record = {
+    schemaVersion: 3,
+    assignedProduct: "lan",
+    open: [
+      {
+        id: "imported-order",
+        name: "Linked order",
+        files: [{ name: "shared", attachmentId: "original-image" }],
+      },
+    ],
+    eflows: [
+      {
+        id: "imported-flow",
+        linkedOrderId: "imported-order",
+        linkMode: "manual",
+        val42: "420010001",
+        files: [{ name: "shared", attachmentId: "original-image" }],
+      },
+    ],
+    trash: [
+      {
+        kind: "eflows",
+        record: {
+          id: "archived-flow",
+          files: [{ name: "shared", attachmentId: "original-image" }],
+        },
+      },
+    ],
+    attachments: [
+      {
+        id: "original-image",
+        name: "shared",
+        dataURL: "data:image/png;base64,eA==",
+      },
+    ],
+  };
+  const form = a.doc.querySelector("#modalForm");
+  Object.defineProperty(form.elements.files, "files", {
+    value: [{ size: 1000, text: async () => JSON.stringify(record) }],
+  });
+  form.elements.confirmed.checked = true;
+  await a.submit("#modalForm");
+  const saved = a.saved("Pavel");
+  assert.equal(saved.eflows[0].linkedOrderId, "imported-order");
+  const imageId = saved.open[0].files[0].attachmentId;
+  assert.notEqual(imageId, "original-image");
+  assert.equal(saved.eflows[0].files[0].attachmentId, imageId);
+  assert.equal(saved.trash[0].record.files[0].attachmentId, imageId);
 });

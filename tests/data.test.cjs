@@ -57,7 +57,7 @@ test("migration preserves every existing collection and unknown metadata without
     before = JSON.stringify(source),
     result = D.normalizeData(source);
   assert.equal(JSON.stringify(source), before);
-  assert.equal(result.schemaVersion, 2);
+  assert.equal(result.schemaVersion, D.VERSION);
   assert.equal(result.open[0].product, "lan");
   assert.equal(result.open[0].val42, "42007890");
   assert.equal(result.open[0].val23, "23006789");

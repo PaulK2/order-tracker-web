@@ -1775,3 +1775,66 @@ details > textarea {
     animation: none !important;
   }
 }
+
+/* Batch screenshot imports and category-specific tracking. */
+.import-hint {
+  margin: 18px 0;
+}
+.import-result {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px;
+}
+.import-result b {
+  font-size: 14px;
+}
+.eflow-table {
+  min-width: 900px;
+}
+.eflow-table th,
+.eflow-table td {
+  padding: 16px 14px;
+}
+.eflow-table td {
+  vertical-align: top;
+}
+.eflow-table td:first-child {
+  min-width: 160px;
+}
+.eflow-table td:nth-child(2),
+.eflow-table td:nth-child(3) {
+  white-space: nowrap;
+}
+.eflow-order-link {
+  max-width: 210px;
+  text-align: left;
+  white-space: normal;
+}
+.eflow-actions {
+  flex-wrap: nowrap;
+}
+.dropzone.dragover {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+#scanStatus {
+  margin-top: 12px;
+  font-size: 13px;
+}
+@media (max-width: 600px) {
+  .import-result {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .tabs {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+  }
+  .tabs .tab {
+    flex-shrink: 0;
+  }
+}

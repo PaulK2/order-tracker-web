@@ -5,7 +5,7 @@
   else root.CDCData = api;
 })(typeof window !== "undefined" ? window : globalThis, function () {
   "use strict";
-  const VERSION = 2;
+  const VERSION = 3;
   const PASSPORT = "CDC2026001"; // Requested lightweight signup gate; not server authentication.
   const DEFAULT_TASKS = [
     "MATERIAL LIST",
@@ -201,6 +201,26 @@
         });
     out.open = orders(source.open, false);
     out.finished = orders(source.finished, true);
+    const products = [...out.open, ...out.finished].map((o) => o.product);
+    out.assignedProduct =
+      productId(source.assignedProduct) ||
+      (products.length && products.every((p) => p === products[0])
+        ? products[0]
+        : "lan");
+    out.eflows = list(source.eflows)
+      .filter((e) => e && typeof e === "object")
+      .map((e, i) => ({
+        ...e,
+        id: e.id ?? `legacy-eflow-${i}`,
+        val42: str(e.val42),
+        dateFrom: str(e.dateFrom),
+        grossAmount: str(e.grossAmount),
+        bsId: str(e.bsId),
+        customer: str(e.customer),
+        completed: !!e.completed,
+        linkedOrderId: e.linkedOrderId == null ? null : str(e.linkedOrderId),
+        files: list(e.files),
+      }));
     out.personalNotes = list(source.personalNotes);
     out.trash = list(source.trash);
     out.theme = source.theme === "dark" ? "dark" : "light";
@@ -270,14 +290,15 @@
       if (raw === null)
         throw new Error("This user has no saved record in this browser.");
       const data = parse(`ot:${name}`, {});
-      // Back up the exact original bytes before any eventual v2 write.
-      if (data.schemaVersion !== VERSION) backup(name);
+      // Keep each pre-migration version, including an existing original v1 backup.
+      if (data.schemaVersion !== VERSION)
+        backup(name, data.schemaVersion === 2 ? "v2" : "v1");
       return normalizeData(data);
     }
     function save(name, data) {
       write(`ot:${name}`, data);
     }
-    function create(name, passport) {
+    function create(name, passport, assignedProduct = "lan") {
       if (passport !== PASSPORT)
         throw new Error("The registration passport is incorrect.");
       const value = validateUsername(name);
@@ -288,6 +309,7 @@
       )
         throw new Error("That user already exists. Select the existing user.");
       const record = emptyData();
+      record.assignedProduct = productId(assignedProduct) || "lan";
       save(value, record);
       try {
         write("ot:users", [...all, value]);
